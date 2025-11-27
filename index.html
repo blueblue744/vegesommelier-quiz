@@ -1,0 +1,571 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>野菜ソムリエクイズ</title>
+</head>
+<body>
+<!-- ■■■ CodePen用設定：ここからコピー ■■■ -->
+
+<!-- デザイン（Tailwind CSS） -->
+<script src="https://cdn.tailwindcss.com"></script>
+<script>
+  tailwind.config = {
+    theme: {
+      extend: {
+        colors: { emerald: { 50: '#ecfdf5', 100: '#d1fae5', 500: '#10b981', 600: '#059669', 700: '#047857', 900: '#064e3b' }, orange: { 50: '#fff7ed', 500: '#f97316', 600: '#ea580c' } },
+        animation: {
+          'fade-in': 'fadeIn 0.5s ease-out forwards',
+          'slide-up': 'slideUp 0.5s ease-out forwards',
+          'zoom-in': 'zoomIn 0.5s ease-out forwards'
+        },
+        keyframes: {
+          fadeIn: { '0%': { opacity: '0' }, '100%': { opacity: '1' } },
+          slideUp: { '0%': { transform: 'translateY(20px)', opacity: '0' }, '100%': { transform: 'translateY(0)', opacity: '1' } },
+          zoomIn: { '0%': { transform: 'scale(0.9)', opacity: '0' }, '100%': { transform: 'scale(1)', opacity: '1' } }
+        }
+      }
+    }
+  }
+</script>
+
+<!-- Reactを動かすためのBabel -->
+<script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+
+<!-- アプリの表示場所（画面いっぱいに広げる設定） -->
+<div id="root" class="h-screen w-screen bg-stone-100 text-stone-800 overflow-hidden select-none"></div>
+
+<!-- メインプログラム -->
+<script type="text/babel" data-type="module">
+  // CodePen用に importmap を使わず直接URL指定でインポートします（これで確実に動きます）
+  import React, { useState, useEffect, useRef } from 'https://esm.sh/react@18.2.0';
+  import { createRoot } from 'https://esm.sh/react-dom@18.2.0/client';
+  import { Leaf, Sprout, Zap, Crown, History as HistoryIcon, CheckCircle, XCircle, ArrowRight, LogOut, Trophy, RotateCcw, Home, ArrowLeft, Calendar, PlayCircle, AlertCircle, Trash2, Loader2, UserCheck, Download, FileText } from 'https://esm.sh/lucide-react@0.263.1';
+
+  // --- データベース（全150問以上） ---
+  const QUESTION_DATABASE = [
+      // --- 初級 (Beginner) ---
+      { difficulty: 'beginner', category: '目利き', question: '新鮮なキュウリを選ぶ際のポイントとして、最も適切なものはどれですか？', options: ['表面のイボが取れて丸くなっているもの', '表面のイボが鋭くチクチクしているもの', '全体的に黄色味を帯びているもの', '非常に太くて重量感がありすぎるもの'], correctAnswerIndex: 1, explanation: 'キュウリは鮮度が良いほど表面のイボが鋭く、触ると痛いほどです。イボが取れていたり、黄色くなっているものは収穫から時間が経っています。' },
+      { difficulty: 'beginner', category: '保存', question: 'ジャガイモを保存する際、一緒に入れておくと発芽を抑える効果があるとされる果物はどれですか？', options: ['バナナ', 'ミカン', 'リンゴ', 'キウイ'], correctAnswerIndex: 2, explanation: 'リンゴから放出されるエチレンガスには、ジャガイモの発芽を抑制する働きがあります。ただし、逆に他の野菜（葉物など）の追熟を早めてしまうこともあるので注意が必要です。' },
+      { difficulty: 'beginner', category: '栄養', question: 'ピーマンやパプリカに豊富に含まれ、加熱しても壊れにくいとされるビタミンはどれですか？', options: ['ビタミンC', 'ビタミンB1', 'ビタミンD', 'ビタミンK'], correctAnswerIndex: 0, explanation: '一般的にビタミンCは熱に弱いですが、ピーマンのビタミンCは組織が強固なため、加熱調理しても損失が少ないのが大きな特徴です。' },
+      { difficulty: 'beginner', category: '栽培', question: '「春キャベツ」の特徴として正しいものはどれですか？', options: ['葉が硬く、煮込み料理に向いている', '形が扁平で、重量感がある', '葉が柔らかく、生食（サラダ）に向いている', '冬の間保存されていたため甘みが強い'], correctAnswerIndex: 2, explanation: '春キャベツ（新キャベツ）は巻きがふんわりとしていて葉が柔らかく、水分が多いのが特徴です。加熱しすぎると溶けてしまうため、サラダなどの生食に向いています。' },
+      { difficulty: 'beginner', category: '保存', question: 'バナナを冷蔵庫で保存すると皮が黒くなってしまう現象を何と言いますか？', options: ['低温障害', '追熟', '酸化', '糖化'], correctAnswerIndex: 0, explanation: 'バナナなどの熱帯原産の果物は寒さに弱く、冷蔵庫などの低温環境に置くと細胞が傷んで「低温障害」を起こし、皮が黒変してしまいます。' },
+      { difficulty: 'beginner', category: '調理', question: 'レンコンを切った際に糸を引く成分は何と呼ばれますか？', options: ['ペクチン', 'ムチン（糖タンパク質）', 'コラーゲン', 'グルテン'], correctAnswerIndex: 1, explanation: 'レンコンやオクラ、ナガイモなどのネバネバ成分は、一般にムチンと呼ばれる糖タンパク質の一種です。胃粘膜の保護などの効果が期待されます。' },
+      { difficulty: 'beginner', category: '分類', question: 'イチゴの赤い部分は、植物学的には何にあたりますか？', options: ['果実', '種子', '花托（花床）', '根'], correctAnswerIndex: 2, explanation: 'イチゴの赤い部分は「花托（花床）」が肥大したもので、偽果と呼ばれます。本当の「果実」は、表面についているツブツブの部分です。' },
+      { difficulty: 'beginner', category: '目利き', question: '美味しい大根の見分け方として、一般的に推奨されるのは次のうちどれですか？', options: ['ひげ根の穴が一直線に並んでいるもの', 'ひげ根の穴が螺旋状にねじれているもの', '表面に黒い斑点が多いもの', '持った時に軽いもの'], correctAnswerIndex: 0, explanation: '大根はひげ根の穴がまっすぐ一直線に並んでいるものが、素直に育っており、食感や味が良いとされています。ねじれているものは辛味が強い傾向があります。' },
+      { difficulty: 'beginner', category: '栄養', question: '「森のバター」とも呼ばれ、脂肪分が非常に豊富な果実はどれですか？', options: ['マンゴー', 'アボカド', 'ドリアン', 'バナナ'], correctAnswerIndex: 1, explanation: 'アボカドは「最も栄養価の高い果物」としてギネス認定されており、脂肪分（良質な不飽和脂肪酸）が多いため「森のバター」と呼ばれます。' },
+      { difficulty: 'beginner', category: '保存', question: 'ほうれん草などの葉物野菜を冷蔵庫で保存する際の最も適切な置き方は？', options: ['横に寝かせて置く', '逆さまにして置く', '立てて置く', '水に完全に浸して置く'], correctAnswerIndex: 2, explanation: '野菜は畑で育っていた時と同じ状態で保存するのがベストです。葉物野菜は立てて保存することで、エネルギー消費を抑え、鮮度を長く保てます。' },
+      { difficulty: 'beginner', category: '調理', question: 'ごぼうのアク抜きの方法として、最も一般的なのは？', options: ['塩水につける', '酢水につける', '熱湯につける', '重曹水につける'], correctAnswerIndex: 1, explanation: 'ごぼうは酢水につけることで、ポリフェノールの酸化による変色を防ぎ（白く仕上げる）、適度にアクを抜くことができます。' },
+      { difficulty: 'beginner', category: '生産', question: '枝豆は、成長すると何という豆になりますか？', options: ['大豆', '小豆', 'インゲン豆', 'ソラマメ'], correctAnswerIndex: 0, explanation: '枝豆は、大豆が完熟する前の未熟な状態で収穫したものです。同じ植物ですが、収穫時期によって呼び名と栄養価（野菜か穀物か）が変わります。' },
+      { difficulty: 'beginner', category: '目利き', question: 'オクラの鮮度が落ちてくると現れる特徴はどれですか？', options: ['色が濃くなる', '産毛がなくなる', '黒い斑点が出る', '大きく膨らむ'], correctAnswerIndex: 2, explanation: 'オクラは鮮度が落ちたり低温障害を受けると、表面や角の部分に黒い斑点が現れやすくなります。全体的に黒ずんでいるものは避けましょう。' },
+      { difficulty: 'beginner', category: '保存', question: 'カットしたカボチャの保存方法として正しいのは？', options: ['種とワタを取り除き、ラップをして冷蔵庫へ', '種とワタはそのままにして、ラップをして冷蔵庫へ', '水に浸して冷蔵庫へ', '天日干しにする'], correctAnswerIndex: 0, explanation: 'カボチャは種とワタの部分から傷み始めるため、カットした後はすぐにスプーン等で種とワタを取り除き、空気に触れないようラップをして保存します。' },
+      { difficulty: 'beginner', category: '栄養', question: 'ニンジンに豊富に含まれ、体内でビタミンAに変わる成分は？', options: ['β-カロテン', 'リコピン', 'ルテイン', 'アントシアニン'], correctAnswerIndex: 0, explanation: 'β-カロテンは体内で必要な分だけビタミンAに変換され、皮膚や粘膜の健康維持、視力の維持などに役立ちます。油と一緒に摂ると吸収率が上がります。' },
+      { difficulty: 'beginner', category: '目利き', question: '美味しいレタスを選ぶ際、一般的に良質とされる特徴は？', options: ['ずっしりと重いもの', '巻きがふんわりとしていて軽いもの', '芯の切り口が赤いもの', '葉が分厚く硬いもの'], correctAnswerIndex: 1, explanation: '結球レタスは、巻きがふんわりとしていて軽いものの方が、葉が柔らかく苦味が少ない傾向があります。重すぎるものは育ちすぎて硬い場合があります。' },
+      { difficulty: 'beginner', category: '調理', question: 'タケノコのアク抜きに使われる、最も一般的な材料は？', options: ['重曹', '米ぬか（または米のとぎ汁）', '酢', '塩'], correctAnswerIndex: 1, explanation: '米ぬかに含まれるカルシウムがえぐみ成分と結合して中和し、デンプン粒子がタケノコを包み込んで酸化を防ぐため、米ぬかと唐辛子を入れて茹でるのが一般的です。' },
+      { difficulty: 'beginner', category: '栄養', question: 'キウイフルーツなどの果物を食べた時に、舌がピリピリするのは何という成分の影響ですか？', options: ['アクチニジン（タンパク質分解酵素）', 'クエン酸', 'シュウ酸', 'カプサイシン'], correctAnswerIndex: 0, explanation: 'キウイに含まれる「アクチニジン」はタンパク質分解酵素で、舌の粘膜タンパク質を刺激するためピリピリ感を感じることがあります。肉を柔らかくする効果もあります。' },
+      { difficulty: 'beginner', category: '目利き', question: 'ブロッコリーの鮮度が良い状態とされる特徴は？', options: ['つぼみが紫色を帯びている', 'つぼみが黄色くなっている', '茎に空洞がある', 'つぼみが開いている'], correctAnswerIndex: 0, explanation: 'ブロッコリーのつぼみが紫色になっているのは、寒さに当たってアントシアニン（ポリフェノール）が生成された証拠で、甘みが増して美味しいサインです。黄色いものは花が咲きかけて鮮度が落ちています。' },
+      { difficulty: 'beginner', category: '保存', question: 'もやしを少しでも長持ちさせる保存方法として、最も効果的なのは？', options: ['袋のまま常温保存', '水に浸して冷蔵保存', 'ザルにあけて乾燥保存', '日光に当てる'], correctAnswerIndex: 1, explanation: 'もやしは呼吸量が多いためすぐに傷みますが、密閉容器に入れてひたひたの水に浸し、冷蔵庫に入れるとシャキシャキ感を数日保てます（水は毎日交換が必要です）。' },
+      { difficulty: 'beginner', category: '調理', question: '生姜の皮を無駄なく、かつ安全に剥くのに適した道具は？', options: ['包丁', 'スプーン', 'ピーラー', '手'], correctAnswerIndex: 1, explanation: '生姜の皮は非常に薄く、スプーンの縁でこそげ落とすようにすると、実を削りすぎずに皮だけきれいに剥くことができます。凸凹した部分にも入り込みやすいです。' },
+      { difficulty: 'beginner', category: '調理', question: 'イチゴを洗う際、ヘタを取ってから洗う？取らずに洗う？', options: ['ヘタを取ってから洗う', 'ヘタを取らずに洗う', 'どちらでも良い', '塩水につけてからヘタを取る'], correctAnswerIndex: 1, explanation: 'ヘタを取ってから洗うと、切り口からビタミンCが流出し、水っぽくなってしまいます。ヘタをつけたまま洗い、食べる直前に取るのが正解です。' },
+      { difficulty: 'beginner', category: '目利き', question: 'バナナの皮に現れる黒い斑点（シュガースポット）は、何のサイン？', options: ['腐りかけている', '甘く熟している', '病気にかかっている', '虫に食われている'], correctAnswerIndex: 1, explanation: 'シュガースポットはバナナが完熟し、糖度が増しているサインです。この状態が最も甘く、免疫力を高める効果も高いと言われています。' },
+      { difficulty: 'beginner', category: '調理', question: 'レタスをサラダにする際、金気（かなけ）を防ぎ、変色を遅らせる方法は？', options: ['包丁で切る', '手でちぎる', 'ハサミで切る', 'すりおろす'], correctAnswerIndex: 1, explanation: '包丁の金属イオンがレタスのポリフェノールと反応して酸化・変色しやすくなるため、手でちぎるのが一般的です。断面が複雑になりドレッシングも絡みやすくなります。' },
+      { difficulty: 'beginner', category: '目利き', question: '新鮮なキュウリにある「イボ」は、触るとどう感じるのが良い？', options: ['チクチクして痛い', '丸くて滑らか', '柔らかくて潰れる', '取れて無くなっている'], correctAnswerIndex: 0, explanation: '新鮮なキュウリのイボは鋭く尖っており、触るとチクチク痛いほどです。収穫から時間が経つとイボが取れたり丸くなったりします。' },
+      { difficulty: 'beginner', category: '保存', question: 'ジャガイモの芽が出てしまった場合、どうすべき？', options: ['芽だけ取れば食べられる', '芽とその周辺を深くえぐり取れば食べられる', '皮を剥けば大丈夫', '毒が回っているので全て捨てる'], correctAnswerIndex: 1, explanation: 'ジャガイモの芽や根元にはソラニンなどの毒素が含まれます。芽だけでなく、その根元部分も含めて深くえぐり取れば、残りの部分は食べることができます。' },
+      { difficulty: 'beginner', category: '栄養', question: 'ニンジンの皮のすぐ下には、何の栄養素が多く含まれている？', options: ['β-カロテン', '糖分', '水分', '脂質'], correctAnswerIndex: 0, explanation: 'ニンジンのβ-カロテンは皮のすぐ下の部分に最も多く含まれています。なるべく皮を薄く剥くか、皮ごと食べるのが栄養的におすすめです。' },
+      { difficulty: 'beginner', category: '品種', question: '玉ねぎを切ると、一枚一枚剥がれる層状の構造になっていますが、あれは植物のどの部分？', options: ['根', '茎', '葉', '実'], correctAnswerIndex: 2, explanation: '玉ねぎの食べる部分は「鱗葉（りんよう）」と呼ばれる、葉の付け根が養分を蓄えて厚くなったものです。茎は根元の円盤状の部分だけです。' },
+      { difficulty: 'beginner', category: '目利き', question: 'トウモロコシは収穫後、いつ食べるのが一番甘い？', options: ['収穫直後', '1日寝かせた後', '3日後', '1週間後'], correctAnswerIndex: 0, explanation: 'トウモロコシは「お湯を沸かしてから畑に行け」と言われるほど鮮度落ちが早く、収穫直後から糖分がデンプンに変わり甘みが減っていきます。採れたてが一番です。' },
+      { difficulty: 'beginner', category: '目利き', question: '新鮮なナスを選ぶポイントとして、「ツヤ」ともう一つ重要なのは？', options: ['ヘタの切り口が新しい', '実が柔らかくてフニャフニャ', 'トゲがない', '軽い'], correctAnswerIndex: 0, explanation: '新鮮なナスは皮にハリとツヤがあり、ヘタの切り口がみずみずしく新しいものが良品です。また、ヘタのトゲが鋭いのも新鮮さの証です。' },
+      { difficulty: 'beginner', category: '目利き', question: '春キャベツと冬キャベツ、持った時に「軽い」のが特徴なのはどっち？', options: ['春キャベツ', '冬キャベツ', 'どちらも同じ', '秋キャベツ'], correctAnswerIndex: 0, explanation: '春キャベツは巻きがふんわりとしていて葉が柔らかく、持った時に軽いのが特徴です。冬キャベツ（寒玉）は巻きが固くずっしりと重いです。' },
+      { difficulty: 'beginner', category: '調理', question: 'キノコ類を調理する際、基本的に「やってはいけない」下処理は？', options: ['石づきを取る', '手でほぐす', '水でジャブジャブ洗う', '食べやすい大きさに切る'], correctAnswerIndex: 2, explanation: 'キノコ類は水洗いすると風味や旨味が逃げ、水っぽくなってしまいます。汚れが気になる場合はキッチンペーパーなどで拭き取る程度にします（ナメコなどは除く）。' },
+      { difficulty: 'beginner', category: '目利き', question: '食べ頃のアボカドの皮の色は？', options: ['鮮やかな緑色', '黒っぽい色（チョコレート色）', '黄色', '茶色'], correctAnswerIndex: 1, explanation: 'アボカドは未熟なうちは緑色で、熟してくると皮が黒っぽく（チョコレート色に）なり、指で押すと少し弾力を感じるようになります。' },
+      { difficulty: 'beginner', category: '調理', question: '桃の表面にある細かい毛（産毛）は、どうやって落とすのが良い？', options: ['優しく水洗いしながらこする', '洗剤で洗う', 'ピーラーで剥く', '火で炙る'], correctAnswerIndex: 0, explanation: '食べる直前に、流水の下で優しく手でこするように洗うと産毛はきれいに落ちます。強くこすりすぎると傷むので注意が必要です。' },
+      { difficulty: 'beginner', category: '目利き', question: 'リンゴの表面がベタベタしていることがありますが、これは何？', options: ['ワックス（人工的）', '熟して出てきた天然の成分（油上がり）', '農薬', '腐っている'], correctAnswerIndex: 1, explanation: '「油上がり」と呼ばれる現象で、リンゴが熟すとリノール酸やオレイン酸などの脂質が皮の表面に出てきます。天然のワックス成分であり、完熟の証です。' },
+      { difficulty: 'beginner', category: '調理', question: '「もやし」は傷みやすいですが、買ってきてすぐに食べきれない時はどうするのが一番長持ちする？', options: ['袋のまま冷蔵庫', '水に浸して冷蔵庫（水は毎日変える）', '常温で放置', '天日干し'], correctAnswerIndex: 1, explanation: 'もやしは水に浸して冷蔵庫に入れ、水を毎日交換すれば数日間シャキシャキ感を保てます。ただしビタミンCなどは徐々に流出します。' },
+      { difficulty: 'beginner', category: '生産', question: 'ピーマンの中にある「種」は食べられますか？', options: ['毒があるので食べてはいけない', '苦いので捨てるべき', '食べられるし栄養もある', '消化に悪いので絶対ダメ'], correctAnswerIndex: 2, explanation: 'ピーマンの種やワタは無毒で、むしろピラジンなどの栄養が含まれています。食感が気にならなければ、丸ごと調理して食べることができます。' },
+      { difficulty: 'beginner', category: '保存', question: '長ネギを冷蔵庫に入れる際、寝かせて置くより立てて置くほうが良い理由は？', options: ['立ち上がろうとしてエネルギーを使い、曲がったり鮮度が落ちるのを防ぐため', '場所を取らないから', '乾燥を防ぐため', '特に理由はない'], correctAnswerIndex: 0, explanation: 'ネギは収穫後も上に伸びようとする性質があります。寝かせて保存すると、立ち上がろうとして余計なエネルギーを消費し、曲がったり味が落ちたりします。' },
+      { difficulty: 'beginner', category: '目利き', question: '新鮮な「モヤシ」の色は？', options: ['透明感のある白', '黄色っぽい', '茶色っぽい', '緑色'], correctAnswerIndex: 0, explanation: '新鮮なモヤシは全体的に透明感のある白色をしています。茶色くなっていたり、水分が出て袋が曇っているものは鮮度が落ちています。' },
+      { difficulty: 'beginner', category: '調理', question: 'ほうれん草の旬は冬ですが、夏に収穫されたものと比べてビタミンCの量はどう違いますか？', options: ['冬採れの方が圧倒的に多い（約3倍）', '夏採れの方が多い', '変わらない', '冬採れにはビタミンCが含まれない'], correctAnswerIndex: 0, explanation: 'ほうれん草は寒さに当たると凍らないように糖分やビタミン類を蓄えるため、冬採れのものは夏採れに比べてビタミンCが約3倍にもなります。' },
+      { difficulty: 'beginner', category: '目利き', question: '美味しい「サツマイモ」を選ぶポイントとして、表面の状態は？', options: ['皮の色が鮮やかで、傷や凹凸が少ないもの', '皮が剥けているもの', 'ひげ根がたくさん生えているもの', '黒い斑点が多いもの'], correctAnswerIndex: 0, explanation: '皮の色が均一で鮮やか、表面が滑らかで傷が少ないものが良品です。黒い斑点（ヤラピンが滲み出た跡などではなく、病気の斑点）や傷があるものは避けましょう。' },
+      { difficulty: 'beginner', category: '保存', question: 'ニンニクを長期間保存するための、風通しの良い場所での保存方法は？', options: ['ネットに入れて吊るす', '密閉容器に入れる', '水に浸ける', '土に埋める'], correctAnswerIndex: 0, explanation: 'ニンニクは湿気を嫌うため、ネットに入れて風通しの良い日陰に吊るしておくと、カビが生えにくく長期間保存できます。' },
+      { difficulty: 'beginner', category: '調理', question: '「板ずり」とは、キュウリやオクラをどうする作業？', options: ['塩を振ってまな板の上で転がす', '板の上で叩く', '板状に切る', '板に挟んで水分を抜く'], correctAnswerIndex: 0, explanation: '塩を振ってまな板の上でゴロゴロ転がすことで、表面のイボや産毛が取れ、色が鮮やかになり、味が染み込みやすくなります。' },
+      { difficulty: 'beginner', category: '栄養', question: '「カボチャ」の種は食べられる？', options: ['殻を剥けば中身（仁）は栄養豊富で食べられる', '毒があるので絶対にダメ', '食べられるが栄養はない', '皮ごと食べられる'], correctAnswerIndex: 0, explanation: 'カボチャの種（パンプキンシード）は、硬い殻を剥いた中身（仁）にリノール酸やミネラルが豊富に含まれており、炒ったり乾燥させたりして食べられます。' },
+      { difficulty: 'beginner', category: '目利き', question: 'スーパーで「カット野菜」を買う際、袋がパンパンに膨らんでいるものは？', options: ['鮮度が落ちてガスが出ている可能性が高い', '量が多くてお得', '窒素充填されているので新鮮', '特に問題ない'], correctAnswerIndex: 0, explanation: 'カット野菜の袋が異常に膨らんでいる場合、野菜の呼吸や微生物の働きによってガスが発生し、鮮度が落ちている可能性があります（※窒素充填で膨らませている商品を除く）。' },
+      { difficulty: 'beginner', category: '調理', question: '大葉（シソ）を刻むとき、香りを最大限に引き出すコツは？', options: ['刻む前に手のひらでパンと叩く', '水に浸しながら切る', '乾燥させてから切る', 'すり鉢でする'], correctAnswerIndex: 0, explanation: 'シソの香り成分は葉の裏にある小さなカプセルに入っています。使う直前にパンと叩いてカプセルを壊すことで、香りが一気に広がります。' },
+      { difficulty: 'beginner', category: '保存', question: '使いきれなかった「大根」の断面、乾燥を防ぐには？', options: ['ラップでぴったり包む', 'そのまま冷蔵庫へ', '水に浸ける', '塩を塗る'], correctAnswerIndex: 0, explanation: '切り口から水分が蒸発するのを防ぐため、ラップで空気が入らないようにぴったりと包み、冷蔵庫の野菜室に立てて保存するのが理想です。' },
+      { difficulty: 'beginner', category: '栄養', question: 'トマトを加熱調理すると、リコピンの吸収率はどうなる？', options: ['高くなる', '低くなる', '変わらない', 'ゼロになる'], correctAnswerIndex: 0, explanation: 'リコピンは加熱することで細胞壁が壊れ、外に出てきやすくなるため、生で食べるよりも吸収率が数倍に高まります。油と一緒に摂るとさらに良いです。' },
+      { difficulty: 'beginner', category: '品種', question: '「男爵いも」と「メークイン」、コロッケに向いているのはどっち？', options: ['男爵いも', 'メークイン', 'どちらも同じ', 'どちらも向かない'], correctAnswerIndex: 0, explanation: '男爵いもは粉質でホクホクしており、潰しやすいのでコロッケやポテトサラダに向いています。メークインは粘質で煮崩れしにくいです。' },
+      { difficulty: 'beginner', category: '目利き', question: '新鮮な「小松菜」の葉の色は？', options: ['濃い緑色', '黄色っぽい緑', '薄い黄緑', '茶色'], correctAnswerIndex: 0, explanation: '小松菜は葉が肉厚で、緑色が濃く鮮やかなものが新鮮で栄養価も高いです。黄色くなっているものは鮮度が落ちています。' },
+      { difficulty: 'beginner', category: '調理', question: 'ゴボウをささがきにした後、水にさらす時間はどれくらいが適切？', options: ['サッと洗う程度（長くても数分）', '一晩', '1時間', '水が透明になるまで何度も'], correctAnswerIndex: 0, explanation: '水にさらしすぎると、香りや旨味、ポリフェノール（クロロゲン酸）などの栄養が流出してしまいます。酢水なら変色防止になりますが、時間は短めにしましょう。' },
+      { difficulty: 'beginner', category: '保存', question: 'バジルなどのハーブ類、冷蔵庫で黒くなってしまうのを防ぐには？', options: ['湿らせたキッチンペーパーで包み、野菜室へ', '冷凍庫に入れる', '乾燥剤と一緒に保存', '裸のまま保存'], correctAnswerIndex: 0, explanation: 'バジルは寒さと乾燥に弱いです。湿らせたキッチンペーパーで包んでポリ袋に入れ、冷蔵庫の中でも比較的温度が高い野菜室の手前などで保存すると長持ちします。' },
+      { difficulty: 'beginner', category: '栄養', question: '「鉄分」が豊富と言われるほうれん草ですが、吸収率を高めるために一緒に摂ると良い栄養素は？', options: ['ビタミンC', 'カルシウム', '脂質', '食物繊維'], correctAnswerIndex: 0, explanation: '植物性食品に含まれる非ヘム鉄は吸収率が低いですが、ビタミンCと一緒に摂ることで吸収率がアップします。レモンをかけたり、他の野菜と組み合わせるのが良いです。' },
+      { difficulty: 'beginner', category: '品種', question: '「カリフラワー」の色、白以外に存在するのは？', options: ['オレンジや紫', '黒のみ', '青のみ', '透明'], correctAnswerIndex: 0, explanation: 'カリフラワーには一般的な白のほか、オレンジ色（β-カロテン含む）や紫色（アントシアニン含む）の品種も存在し、彩り豊かです。' },
+
+      // --- 中級 (Intermediate) ---
+      { difficulty: 'intermediate', category: '品種', question: 'イチゴの品種「あまおう」の名前の由来に含まれない要素はどれですか？', options: ['あかい', 'まるい', 'おもい', 'うまい'], correctAnswerIndex: 2, explanation: '「あまおう」は福岡県の品種で、「あかい・まるい・おおきい・うまい」の頭文字を取って名付けられました。「おもい（重い）」は含まれません。' },
+      { difficulty: 'intermediate', category: '栄養', question: 'トマトに含まれる赤色色素「リコピン」の吸収率を高めるための調理法として最適なのは？', options: ['生で食べる', '油と一緒に加熱調理する', '冷やして食べる', '酢につける'], correctAnswerIndex: 1, explanation: 'リコピンは脂溶性（油に溶ける性質）であり、加熱によって細胞壁が壊れることで体内への吸収率が大幅に向上します。' },
+      { difficulty: 'intermediate', category: '生産', question: '有機JASマークを貼付するために、原則として禁止されているものはどれですか？', options: ['堆肥', '化学合成農薬・化学肥料', '生物農薬', 'マルチシート'], correctAnswerIndex: 1, explanation: '有機JAS規格では、種まきまたは植え付け前2年以上（多年生作物は3年以上）、化学合成農薬や化学肥料を使用していない畑で栽培することなどが条件となっています。' },
+      { difficulty: 'intermediate', category: '保存', question: 'ブロッコリーが黄色くなってしまう主な原因は何ですか？', options: ['乾燥', 'つぼみの開花', 'カビの発生', '光合成の停止'], correctAnswerIndex: 1, explanation: 'ブロッコリーは小さなつぼみの集合体です。収穫後も成長を続けており、つぼみが開花しようとすることで黄色く変色し、味や栄養価も落ちます。' },
+      { difficulty: 'intermediate', category: '調理', question: 'タマネギを切ると涙が出る原因となる揮発性成分は？', options: ['アリシン', '硫化アリル（催涙因子）', 'カプサイシン', 'ジンゲロール'], correctAnswerIndex: 1, explanation: 'タマネギの細胞が壊れると、硫化アリルの一種（syn-プロパンチアール-S-オキシド）が発生し、これが目や鼻の粘膜を刺激して涙を出させます。' },
+      { difficulty: 'intermediate', category: '分類', question: '「二十世紀梨」などの青梨と、「豊水」などの赤梨の主な違いは何ですか？', options: ['果肉の色', '果皮のコルク層の有無', '種の数', '収穫時期'], correctAnswerIndex: 1, explanation: '赤梨の表面がザラザラして茶色いのは「コルク層」が発達しているためです。青梨はコルク層がなく、ツルツルしています。' },
+      { difficulty: 'intermediate', category: '栄養', question: 'ニンニクの特有の香りの元であり、疲労回復効果（ビタミンB1の吸収促進）があるとされる成分は？', options: ['アリシン', 'クルクミン', 'ピペリン', 'カプサイシン'], correctAnswerIndex: 0, explanation: 'ニンニクに含まれるアリインが酵素によって分解されてできる「アリシン」は、ビタミンB1と結合してアリチアミンとなり、吸収率を高めます。' },
+      { difficulty: 'intermediate', category: '栽培', question: 'アスパラガスの「ホワイトアスパラガス」と「グリーンアスパラガス」の違いは？', options: ['全く異なる品種である', '栽培時に土寄せ等で日光を遮断するかどうか', '収穫後の追熟期間の違い', '原産国の違い'], correctAnswerIndex: 1, explanation: '一般的に品種は同じです。芽が出る前に土を被せたり遮光シートで覆い、日光に当てずに育てると葉緑素が生成されず白くなり、日光に当てて育てると緑色になります。' },
+      { difficulty: 'intermediate', category: '目利き', question: 'スイカの熟度を見分ける際、叩いた時の音で「完熟」とされる音はどれに近いですか？', options: ['高い金属音（カンカン）', '低い濁った音（ボンボン）', '鈍い音（ドスドス）', '無音'], correctAnswerIndex: 1, explanation: '一般に「ボンボン」という響く太鼓のような音が完熟。「カンカン」という高い音は未熟、「ドスドス」という鈍い音は熟れすぎ（空洞果）の可能性があります。' },
+      { difficulty: 'intermediate', category: '栄養', question: '柿の渋みの正体である成分は何ですか？', options: ['タンニン', 'カテキン', 'サポニン', 'アントシアニン'], correctAnswerIndex: 0, explanation: '柿の渋みは水溶性の「タンニン」によるものです。甘柿では熟すにつれてタンニンが不溶性に変化し、口の中で溶け出さなくなるため渋みを感じなくなります。' },
+      { difficulty: 'intermediate', category: '歴史', question: '江戸東京野菜の一つで、徳川吉宗が栽培を奨励したことでも知られる野菜は？', options: ['練馬大根', '小松菜', '千住ネギ', '亀戸大根'], correctAnswerIndex: 1, explanation: '小松菜は、江戸川区小松川周辺で栽培されていたことから、徳川吉宗が鷹狩りの際に名付けたと伝えられています。' },
+      { difficulty: 'intermediate', category: '栽培', question: 'サツマイモの収穫後、すぐに出荷せずに一定期間置く「キュアリング」処理の主な目的は？', options: ['デンプンを糖に変え、傷をコルク化させて治癒する', '水分を完全に抜いて乾燥させる', '芽を出させて次期の種芋にする', '表面の色を鮮やかにする'], correctAnswerIndex: 0, explanation: 'キュアリングは、高温多湿の環境に置くことで収穫時の傷を自然治癒（コルク化）させ、病原菌の侵入を防ぐとともに、デンプンの糖化を促進して甘くする処理です。' },
+      { difficulty: 'intermediate', category: '品種', question: '「メークイン」と「男爵」、煮崩れしにくいのはどちら？', options: ['メークイン', '男爵', 'どちらも同じ', '季節による'], correctAnswerIndex: 0, explanation: 'メークインは粘質で煮崩れしにくいため、カレーやシチューなどの煮込み料理に向いています。男爵は粉質でホクホクしており、コロッケやポテトサラダに向いています。' },
+      { difficulty: 'intermediate', category: '歴史', question: '「京野菜」として認定されるための条件に含まれないものはどれですか？', options: ['京都府内で生産されたもの', '品種の由来が明らかであること', '明治以前から栽培されていること', '必ず露地栽培であること'], correctAnswerIndex: 3, explanation: '京の伝統野菜の定義には「明治以前から栽培されている」「京都府内で生産されている」などがありますが、栽培方法（露地かハウスか）についての厳密な除外規定は一般的にはありません。' },
+      { difficulty: 'intermediate', category: '栄養', question: 'ナスに含まれる紫色の色素成分で、抗酸化作用を持つポリフェノールの一種は？', options: ['ナスニン', 'リコピン', 'ルテイン', 'アスタキサンチン'], correctAnswerIndex: 0, explanation: 'ナスの皮に含まれる特有のアントシアニン系色素が「ナスニン」です。強い抗酸化作用があり、眼精疲労の緩和なども期待されています。' },
+      { difficulty: 'intermediate', category: '目利き', question: '完熟したパイナップルの特徴として間違っているものは？', options: ['甘い香りが強くなる', '葉が簡単に引き抜ける', '全体が黄色くなる', '表面がカチカチに硬くなる'], correctAnswerIndex: 3, explanation: '完熟したパイナップルは、少し弾力を帯びてきます。カチカチに硬いものは未熟の可能性があります。また、葉がスッと抜けるのも完熟のサインです。' },
+      { difficulty: 'intermediate', category: '加工', question: 'こんにゃくの原料となる「こんにゃく芋」の主成分は何ですか？', options: ['グルコマンナン', 'デンプン', 'セルロース', 'タンパク質'], correctAnswerIndex: 0, explanation: 'こんにゃく芋の主成分は水溶性食物繊維の一種である「グルコマンナン」です。これにアルカリ性物質（消石灰など）を加えて固めることでこんにゃくが作られます。' },
+      { difficulty: 'intermediate', category: '栄養', question: 'タケノコの水煮に見られる白い結晶状の物質の成分名は？（※チロシン）', options: ['チロシン', 'グルタミン酸', 'アスパラギン酸', 'リジン'], correctAnswerIndex: 0, explanation: 'タケノコの水煮の隙間などに見られる白い粉のようなものは、アミノ酸の一種である「チロシン」が結晶化したものです。無害で、むしろ旨味成分の一種です。' },
+      { difficulty: 'intermediate', category: '品種', question: 'ネギ属（Alliium）に分類される野菜として、誤っているものはどれですか？', options: ['ニラ', 'ラッキョウ', 'ニンニク', 'ミョウガ'], correctAnswerIndex: 3, explanation: 'ミョウガはショウガ科の植物です。ニラ、ラッキョウ、ニンニク、ネギ、タマネギはすべてネギ属（ヒガンバナ科）に属します。' },
+      { difficulty: 'intermediate', category: '栽培', question: '大根が辛くなる主な栽培条件はどれですか？', options: ['夏場の高温と乾燥', '冬場の低温と降雪', '肥料の過多', '日照不足'], correctAnswerIndex: 0, explanation: '大根は高温や乾燥などのストレスがかかると、防御反応として辛味成分（イソチオシアネートの元となるグルコシノレート）を多く生成します。そのため夏大根は辛い傾向があります。' },
+      { difficulty: 'intermediate', category: '保存', question: 'アボカドの追熟を早めたい場合、一緒に入れておくと良い果物は？', options: ['リンゴやバナナ', 'レモン', 'グレープフルーツ', 'ブドウ'], correctAnswerIndex: 0, explanation: 'リンゴやバナナは成熟ホルモンであるエチレンガスを多く放出するため、アボカドと一緒の袋に入れておくと追熟が促進され、早く柔らかくなります。' },
+      { difficulty: 'intermediate', category: '調理', question: '「焼きナス」を作る際、焼く前にナスに穴を開けたり皮に切れ目を入れる主な理由は？', options: ['破裂を防ぐため', '味が染み込むようにするため', '早く火を通すため', '皮を剥きやすくするため'], correctAnswerIndex: 0, explanation: '丸ごとのナスを高温で加熱すると、内部の空気が膨張して破裂する危険があります。蒸気の逃げ道を作るために穴を開けます。' },
+      { difficulty: 'intermediate', category: '産地', question: 'いちごの品種「とちおとめ」の主な産地はどこですか？', options: ['栃木県', '福岡県', '静岡県', '熊本県'], correctAnswerIndex: 0, explanation: '「とちおとめ」は栃木県で育成された品種で、長年東日本のシェアNo.1を誇っていました（現在は後継品種「とちあいか」も増えています）。' },
+      { difficulty: 'intermediate', category: '歴史', question: '沖縄の伝統野菜「ゴーヤー」の和名（標準和名）は？', options: ['ツルレイシ', 'ニガウリ', 'オキナワキュウリ', 'レイシウリ'], correctAnswerIndex: 0, explanation: 'ゴーヤーの植物学上の標準和名は「ツルレイシ」です。「ニガウリ」も一般的な呼称ですが、生物学的にはツルレイシが使われます。' },
+      { difficulty: 'intermediate', category: '栄養', question: 'ソラマメの旬の時期（初夏）に食べると良いとされる、疲労回復に役立つビタミンは？', options: ['ビタミンB1', 'ビタミンA', 'ビタミンD', 'ビタミンK'], correctAnswerIndex: 0, explanation: 'ソラマメには糖質の代謝を助け、エネルギーを作り出すのに必要なビタミンB1が豊富に含まれており、初夏の疲れやすい時期に最適です。' },
+      { difficulty: 'intermediate', category: '品種', question: '次のうち、日本原産の野菜（または山菜）とされているものはどれですか？', options: ['ウド（独活）', 'キャベツ', 'カボチャ', 'トマト'], correctAnswerIndex: 0, explanation: 'ウド、ミツバ、セリ、フキなどは数少ない日本原産の野菜（山菜）です。キャベツなどは明治以降、カボチャなどは戦国時代以降に伝来しました。' },
+      { difficulty: 'intermediate', category: '目利き', question: 'レンコンの穴の数が、一般的に「見通しが良い」として縁起が良いとされる数は？', options: ['8〜9個', '3〜4個', '12〜13個', '5〜6個'], correctAnswerIndex: 0, explanation: '一般的なレンコンの穴は真ん中に1つ、周りに7〜9個程度空いています。「先が見通せる」縁起物としてお祝い事に使われます。' },
+      { difficulty: 'intermediate', category: '調理', question: 'ほうれん草の「根元の赤い部分」に含まれる、骨の形成に関わるミネラルは？', options: ['マンガン', 'カルシウム', '鉄', '亜鉛'], correctAnswerIndex: 0, explanation: 'ほうれん草の根元の赤い部分には、骨の形成や糖質・脂質の代謝に関わるマンガンが豊富に含まれています。甘みも強いため、捨てずに食べるのがおすすめです。' },
+      { difficulty: 'intermediate', category: '保存', question: 'キノコ類を冷凍保存することのメリットは？', options: ['細胞壁が壊れて旨味成分（グアニル酸など）が増える', '食感がシャキシャキになる', '色が鮮やかになる', 'ビタミンCが増える'], correctAnswerIndex: 0, explanation: 'キノコは冷凍すると細胞中の水分が膨張して細胞壁が壊れます。これを加熱調理すると、酵素の働きで旨味成分（グアニル酸など）が溶け出しやすくなり、味が濃厚になります。' },
+      { difficulty: 'intermediate', category: '品種', question: '「万願寺とうがらし」の発祥の地はどこですか？', options: ['京都府舞鶴市', '高知県高知市', '奈良県奈良市', '鹿児島県指宿市'], correctAnswerIndex: 0, explanation: '万願寺とうがらしは、大正末期に京都府舞鶴市の万願寺地区で誕生した「京の伝統野菜」です。大型で肉厚、辛味がないのが特徴です。' },
+      { difficulty: 'intermediate', category: '栽培', question: '野菜の苗を植える際、あえて根についた土を崩さずに植える方法を何と言いますか？', options: ['根鉢（ねばち）を崩さずに植える', '根洗いして植える', '断根して植える', '深植えする'], correctAnswerIndex: 0, explanation: '根鉢（ポットの中で根と土が固まった状態）を崩さずに植えることで、根へのダメージを最小限に抑え、植え付け後の活着（根付き）を良くします。' },
+      { difficulty: 'intermediate', category: '栄養', question: 'ミカンの白い筋（アルベド）や袋（じょうのう）に多く含まれる、毛細血管を強化するビタミン様物質は？', options: ['ヘスペリジン（ビタミンP）', 'ルテイン', 'リコピン', 'カプサンチン'], correctAnswerIndex: 0, explanation: 'ヘスペリジンはポリフェノールの一種で、ビタミンCの吸収を助けたり、毛細血管を丈夫にする働きがあります。白い筋に特に多く含まれます。' },
+      { difficulty: 'intermediate', category: '栄養', question: 'シソ（大葉）の香りの主成分で、強い防腐・殺菌作用を持つのは？', options: ['ペリルアルデヒド', 'アリシン', 'リモネン', 'ジンゲロール'], correctAnswerIndex: 0, explanation: 'シソ特有の香りは「ペリルアルデヒド」によるもので、強力な防腐・殺菌作用があり、刺身のつまや食中毒予防に使われます。' },
+      { difficulty: 'intermediate', category: '調理', question: 'マイタケを茶碗蒸しに入れると固まらなくなることがありますが、その原因となる酵素は？', options: ['プロテアーゼ（タンパク質分解酵素）', 'アミラーゼ', 'リパーゼ', 'セルラーゼ'], correctAnswerIndex: 0, explanation: 'マイタケには強力なタンパク質分解酵素（プロテアーゼ）が含まれており、卵のタンパク質が固まるのを阻害します。加熱してから入れれば酵素が失活し、固まります。' },
+      { difficulty: 'intermediate', category: '品種', question: '「獅子唐（ししとう）」の中に、時々極端に辛いものが混じっている現象を何と言いますか？', options: ['先祖返り（単為結果）', 'ストレスによるカプサイシン生成', '交雑', '突然変異'], correctAnswerIndex: 1, explanation: 'シシトウは通常辛くありませんが、栽培中の乾燥や高温などの「ストレス」がかかると、防衛本能として辛味成分カプサイシンを生成して辛くなることがあります。' },
+      { difficulty: 'intermediate', category: '保存', question: 'ミョウガ（茗荷）を長期間保存するための最適な方法は？', options: ['水を入れた容器に浸して冷蔵', '乾燥させて常温', '新聞紙に包んで常温', '塩漬けのみ'], correctAnswerIndex: 0, explanation: 'ミョウガは乾燥に弱いため、タッパーなどに水を入れ、全体が浸かるようにして冷蔵庫で保存すると、2週間〜1ヶ月程度シャキシャキ感を保てます（水はこまめに交換）。' },
+      { difficulty: 'intermediate', category: '生産', question: 'グリーンアスパラガスの収穫方法として、「立茎（りっけい）栽培」とはどのような方法ですか？', options: ['春に収穫を終えた後、数本の茎を伸ばして葉を茂らせ、養分を蓄えさせて夏以降も収穫する方法', '常に茎を立てて保存する方法', '支柱を立てて高く伸ばす方法', '種を垂直に蒔く方法'], correctAnswerIndex: 0, explanation: '春芽を収穫した後、一部の茎をそのまま伸ばして「親茎」とし、光合成を行わせて根に養分を送りながら、夏から秋にかけて出てくる若芽を収穫する栽培法です。' },
+      { difficulty: 'intermediate', category: '栄養', question: 'ゴボウの皮に含まれるポリフェノールの一種で、抗酸化作用や創傷治癒効果があるとされる成分は？', options: ['クロロゲン酸', 'アントシアニン', 'ルチン', 'イソフラボン'], correctAnswerIndex: 0, explanation: 'ゴボウを水にさらした時に出る茶色い水の色素成分です。アクとして捨てられがちですが、強力な抗酸化作用があるため、皮はこそげ落とす程度にし、水にさらしすぎないのが良いとされます。' },
+      { difficulty: 'intermediate', category: '目利き', question: '美味しい「カブ」を選ぶ際、葉の状態はどうなっているのが良い？', options: ['葉が切り落とされているもの', '葉が緑鮮やかで、茎がしっかりしているもの', '葉が黄色く変色しているもの', '葉がしなびているもの'], correctAnswerIndex: 1, explanation: '葉付きのカブは、葉がピンとして緑が濃いものが新鮮です。葉と根（実）のつなぎ目が変色していないものを選びましょう。購入後はすぐに葉を切り落とさないと根の水分が奪われます。' },
+      { difficulty: 'intermediate', category: '歴史', question: '冬至（12月22日頃）にカボチャを食べる風習がありますが、カボチャの別名である「南京（なんきん）」のように、「ん」のつく食べ物を食べるとどうなると言われていますか？', options: ['運盛り（運がつく）', '金持ちになる', '長生きする', '目が良くなる'], correctAnswerIndex: 0, explanation: '「ん」がつく食べ物を食べて「運」を呼び込む「運盛り」という縁起担ぎです。カボチャ（南瓜＝なんきん）、レンコン、ニンジン、ギンナン、キンカン、カンテン、うどん（饂飩＝うんどん）を「冬至の七種」と言います。' },
+      { difficulty: 'intermediate', category: '品種', question: '「カリフラワー」の変種で、幾何学的なフラクタル形状が特徴的な野菜は？', options: ['ロマネスコ', 'ブロッコリースプラウト', 'ケール', 'コールラビ'], correctAnswerIndex: 0, explanation: 'ロマネスコはカリフラワーの一種（またはブロッコリーとカリフラワーの中間）で、つぼみが螺旋状に並び、美しいフラクタル構造をしているのが特徴です。世界一美しい野菜とも呼ばれます。' },
+      { difficulty: 'intermediate', category: '栽培', question: 'トマトの「芽かき」をした後のわき芽を土に挿すとどうなりますか？', options: ['根が出て新しい株として育つ（挿し木が可能）', 'すぐに枯れてしまう', '花は咲くが実はならない', '毒を持つようになる'], correctAnswerIndex: 0, explanation: 'トマトは非常に生命力が強く、摘み取ったわき芽を土や水に挿しておくと発根し、新しい株として育てることができます（クローン栽培）。' },
+      { difficulty: 'intermediate', category: '栄養', question: 'スイカの種には、体を作るのに欠かせない栄養素が豊富に含まれています。それは何？', options: ['タンパク質と脂質（リノール酸など）', 'ビタミンC', '糖質', '水分'], correctAnswerIndex: 0, explanation: 'スイカの種は、中国などでは炒ってスナックとして食べられています。タンパク質と良質な脂質（リノール酸など）、ミネラルが豊富です。' },
+      { difficulty: 'intermediate', category: '保存', question: 'お米の虫除けとして利用できる、殺菌作用のある野菜は？', options: ['唐辛子（タカノツメ）', '生姜', 'ジャガイモ', 'カボチャ'], correctAnswerIndex: 0, explanation: '唐辛子に含まれる辛味成分や揮発成分を虫が嫌うため、米びつに入れておくとコクゾウムシなどの防虫効果があります。' },
+      { difficulty: 'intermediate', category: '調理', question: '春菊（シュンギク）の独特の香りを楽しみたい場合、茎と葉、どちらを生で食べるのがおすすめ？', options: ['茎は硬いので葉だけ', '葉は苦いので茎だけ', '柔らかい葉先を中心に生で', '加熱しないと食べられない'], correctAnswerIndex: 2, explanation: '新鮮な春菊の葉先は柔らかく、生でサラダにすると独特の香りが楽しめます。加熱しすぎると苦味が出やすくなります。' },
+      { difficulty: 'intermediate', category: '栄養', question: '「ニラ」に豊富に含まれ、体内でビタミンAに変わる成分は？', options: ['β-カロテン', 'リコピン', 'ルテイン', 'アントシアニン'], correctAnswerIndex: 0, explanation: 'ニラは緑黄色野菜で、β-カロテンが非常に豊富です。油と一緒に調理すると吸収率が高まります。' },
+      { difficulty: 'intermediate', category: '栽培', question: '「ミョウガ（茗荷）」の旬の時期は、一般的にいつ頃ですか？', options: ['春と秋', '夏と秋', '冬と春', '一年中同じ'], correctAnswerIndex: 1, explanation: 'ミョウガには6〜8月に収穫される「夏ミョウガ」と、8〜10月に収穫される「秋ミョウガ」があり、夏から秋が旬です。' },
+      { difficulty: 'intermediate', category: '品種', question: '徳島県の「すだち」と大分県の「かぼす」。一般的にサイズが大きいのはどっち？', options: ['すだち', 'かぼす', '同じくらい', '季節による'], correctAnswerIndex: 1, explanation: 'すだちはゴルフボール程度（30-40g）、かぼすはテニスボール程度（100-150g）の大きさがあり、かぼすの方が大きいです。' },
+      { difficulty: 'intermediate', category: '調理', question: 'ゴーヤー（ニガウリ）の苦味を和らげる下処理として効果的なのは？', options: ['砂糖水につける', '塩揉みするか、サッと茹でる', '冷凍する', '天日干しする'], correctAnswerIndex: 1, explanation: '薄くスライスして塩揉みし、水分を絞るか、熱湯でサッと茹でることで苦味成分が抜け、食べやすくなります。' },
+      { difficulty: 'intermediate', category: '調理', question: '里芋の皮を剥くとき、手が痒くなる原因成分は？（シュウ酸カルシウムの形は？）', options: ['球状', '針状結晶', '板状', '液体'], correctAnswerIndex: 1, explanation: '里芋のぬめりの中に含まれる「シュウ酸カルシウム」は針状の結晶をしており、これが皮膚に刺さることで痒みを感じます。酢水で洗うと和らぎます。' },
+      { difficulty: 'intermediate', category: '調理', question: '山芋（長芋）をすりおろして時間が経つと、茶色く変色するのはなぜ？', options: ['腐敗したから', 'ポリフェノールが酸化したから', '糖分が焦げたから', 'カビが生えたから'], correctAnswerIndex: 1, explanation: '山芋に含まれるポリフェノールオキシダーゼという酵素が、空気に触れてポリフェノールを酸化させるため褐変します。酢を加えると変色を防げます。' },
+      { difficulty: 'intermediate', category: '調理', question: 'セロリの筋を取る主な理由は？', options: ['毒があるから', '口当たり（食感）を良くするため', '苦味を取るため', '色を良くするため'], correctAnswerIndex: 1, explanation: 'セロリの表面にある太い筋は硬く、加熱しても口に残るため、ピーラーや包丁で取り除くと食感が良くなります。毒はありません。' },
+      { difficulty: 'intermediate', category: '品種', question: '「タロイモ」の仲間で、日本で最も一般的なのは？', options: ['ジャガイモ', 'サツマイモ', 'サトイモ', 'キャッサバ'], correctAnswerIndex: 2, explanation: 'サトイモはサトイモ科の植物で、熱帯アジア原産のタロイモ類の一種が温帯に適応したものです。' },
+      { difficulty: 'intermediate', category: '栄養', question: '「小松菜」と「ほうれん草」、カルシウムの含有量が多いのはどっち？', options: ['小松菜', 'ほうれん草', '同じくらい', 'どちらも含まれない'], correctAnswerIndex: 0, explanation: '小松菜のカルシウム含有量は野菜の中でもトップクラスで、ほうれん草の3倍以上とも言われます。シュウ酸も少ないためカルシウム摂取に効率的です。' },
+
+      // ==========================================
+      // 上級 (Advanced) - 専門的知識・分類・歴史
+      // ==========================================
+      { difficulty: 'advanced', category: '分類', question: 'トマトやジャガイモ、ナス、ピーマンはすべて同じ「科」に属します。その科名は？', options: ['ウリ科', 'アブラナ科', 'ナス科', 'キク科'], correctAnswerIndex: 2, explanation: 'これらはすべてナス科の植物です。そのため、連作障害（同じ科の野菜を続けて同じ場所で作ると育ちが悪くなる現象）に注意する必要があります。' },
+      { difficulty: 'advanced', category: '栄養', question: 'ジャガイモの芽や緑化した皮に含まれる天然毒素の総称は？', options: ['ソラニン（グリコアルカロイド）', 'アミグダリン', 'プタキロサイド', 'テトロドトキシン'], correctAnswerIndex: 0, explanation: 'ジャガイモの芽や光に当たって緑色になった部分には、ソラニンやチャコニンといったグリコアルカロイド（ステロイドアルカロイド）と呼ばれる天然毒素が含まれます。' },
+      { difficulty: 'advanced', category: '生産', question: '果樹栽培において、台木と穂木をつなぎ合わせる「接ぎ木（つぎき）」を行う主な目的として適切でないものは？', options: ['病害虫への耐性を高める', '樹勢（木の勢い）を調節する', '新しい品種を遺伝子レベルで作り出す', '早期結実を促す'], correctAnswerIndex: 2, explanation: '接ぎ木はあくまで物理的な結合であり、遺伝子組み換えや交配のように新しい品種を遺伝子レベルで作り出すものではありません。台木の特性（病気に強い、矮性など）を利用するために行います。' },
+      { difficulty: 'advanced', category: '歴史', question: 'サツマイモが日本に伝来したルートとして、琉球（沖縄）へ持ち込んだ人物の名前は？', options: ['野國總管', '前田利家', '青木昆陽', '種子島時尭'], correctAnswerIndex: 0, explanation: '1605年、野國總管が中国（明）から琉球へサツマイモの苗を持ち帰りました。その後、儀間真常らが普及させ、薩摩（前田利右衛門）、江戸（青木昆陽）へと伝わりました。' },
+      { difficulty: 'advanced', category: '分類', question: 'バナナの中に黒い種がなく食べられるのは、受精しなくても果実が肥大する性質を持っているからです。この性質を何と言いますか？', options: ['単為結果（たんいけっか）', '自家和合性', '隔年結果', '自家不和合性'], correctAnswerIndex: 0, explanation: '単為結果（Parthenocarpy）とは、受粉・受精が行われなくても子房が肥大して果実になる性質のことです。バナナ、温州ミカン、種なしブドウ（ジベレリン処理など）がこれに当たります。' },
+      { difficulty: 'advanced', category: '栄養', question: 'ワサビや大根おろしの辛味成分であり、揮発性が高く、抗菌作用も持つ成分の名称は？', options: ['アリルイソチオシアネート', 'カプサイシン', 'ピペリン', 'クルクミン'], correctAnswerIndex: 0, explanation: 'アブラナ科の野菜に含まれるグルコシノレートが、細胞破壊により酵素ミロシナーゼと反応して生成されるのがイソチオシアネート類です。ワサビの強烈な辛味はアリルイソチオシアネートによるものです。' },
+      { difficulty: 'advanced', category: '歴史', question: '「カボチャ」の名前の由来となった国（伝来元）はどこですか？', options: ['カンボジア', 'ポルトガル', 'メキシコ', '中国'], correctAnswerIndex: 0, explanation: '16世紀にポルトガル船が日本に持ち込んだ際、「カンボジアの産物」と伝えたことから「カボチャ」と呼ばれるようになったと言われています。' },
+      { difficulty: 'advanced', category: '栽培', question: 'トマトの果実のお尻部分が黒く陥没する「尻腐れ果」の主な発生要因は、何の欠乏ですか？', options: ['カルシウム', '窒素', 'リン酸', 'マグネシウム'], correctAnswerIndex: 0, explanation: 'トマトの尻腐れ果は病気ではなく生理障害で、主に土壌中のカルシウム不足、または乾燥などにより植物体がカルシウムを吸収・転流できなくなることで発生します。' },
+      { difficulty: 'advanced', category: '歴史', question: '世界三大穀物の一つであるトウモロコシの原産地はどこですか？', options: ['アンデス山脈・中南米', 'メソポタミア地方', '中国長江流域', '北アフリカ'], correctAnswerIndex: 0, explanation: 'トウモロコシの原産地はアメリカ大陸（メキシコ～中南米）です。大航海時代にコロンブスによってヨーロッパへ持ち込まれ、世界中に広まりました。' },
+      { difficulty: 'advanced', category: '栄養', question: 'シュウ酸を多く含むため、生食すると「えぐみ」を感じたり、結石の原因になりうる野菜はどれですか？', options: ['ホウレンソウ', 'コマツナ', 'ミズナ', 'チンゲンサイ'], correctAnswerIndex: 0, explanation: 'ホウレンソウはシュウ酸（アク成分）が多いため、基本的に下茹でして水にさらし、シュウ酸を減らしてから調理します。近年は生食用の低シュウ酸品種（サラダホウレンソウ）もあります。' },
+      { difficulty: 'advanced', category: '分類', question: 'イチゴの果実表面にある粒々（種のように見えるもの）の植物学的な正式名称は？', options: ['痩果（そうか）', '核果', '液果', '袋果'], correctAnswerIndex: 0, explanation: 'あの粒々の一つ一つが植物学上の「果実」であり、その中に種子が入っています。このような果実を「痩果（そうか）」と呼びます。' },
+      { difficulty: 'advanced', category: '歴史', question: 'ズッキーニは見た目はキュウリに似ていますが、植物学的にはどの野菜の仲間ですか？', options: ['カボチャ（ペポカボチャ）', 'ナス', 'ユウガオ', 'メロン'], correctAnswerIndex: 0, explanation: 'ズッキーニはウリ科カボチャ属の「ペポカボチャ」の一種です。完熟させて食べるカボチャとは異なり、開花後数日の未熟果を食べます。' },
+      { difficulty: 'advanced', category: '分類', question: 'オクラは植物学的に何科に属しますか？', options: ['アオイ科', 'ウリ科', 'ナス科', 'アブラナ科'], correctAnswerIndex: 0, explanation: 'オクラはアオイ科トロロアオイ属の植物です。ハイビスカスやフヨウと同じ科であり、非常に美しい花を咲かせます。' },
+      { difficulty: 'advanced', category: '栄養', question: '唐辛子の辛味成分カプサイシンは、果実のどの部分に最も多く含まれていますか？', options: ['胎座（ワタの部分）', '種子の中', '果皮の先端', 'ヘタ'], correctAnswerIndex: 0, explanation: 'カプサイシンは、種がついている白いワタの部分（胎座）で合成され、最も多く蓄積されています。種そのものにはあまり含まれていませんが、胎座に近いので辛く感じることがあります。' },
+      { difficulty: 'advanced', category: '歴史', question: '西瓜（スイカ）の原産地はどこですか？', options: ['熱帯アフリカ（サバンナ地帯）', '東南アジア', '南アメリカ', 'インド'], correctAnswerIndex: 0, explanation: 'スイカの原産地はアフリカの砂漠・サバンナ地帯です。そのため、乾燥と高温に強く、強い日差しを好む性質を持っています。' },
+      { difficulty: 'advanced', category: '栽培', question: '「連作障害」を防ぐための一般的な対策として、異なる科の野菜を順番に栽培することを何と言いますか？', options: ['輪作（りんさく）', '間作', '混植', '二期作'], correctAnswerIndex: 0, explanation: '輪作とは、同じ土地に異なる種類の作物を一定の順序で周期的に栽培することです。これにより、特定の病害虫の増加や土壌養分の偏りを防ぎます。' },
+      { difficulty: 'advanced', category: '分類', question: '次のうち、「バラ科」に属さない果物はどれですか？', options: ['ブドウ', 'リンゴ', 'ナシ', 'モモ'], correctAnswerIndex: 0, explanation: 'ブドウはブドウ科です。リンゴ、ナシ、モモ、イチゴ、サクランボなどはすべてバラ科に属します。' },
+      { difficulty: 'advanced', category: '栄養', question: '春菊やヨモギなどに含まれる独特の香り成分で、胃腸の働きを整える効果があるのは？', options: ['α-ピネン / ペリルアルデヒド', 'アリシン', 'リコピン', 'カプサンチン'], correctAnswerIndex: 0, explanation: '春菊などのキク科野菜には、α-ピネンやペリルアルデヒドなどのテルペン類が含まれており、これらが独特の香りと自律神経調整作用や胃腸保護作用をもたらします。' },
+      { difficulty: 'advanced', category: '栽培', question: 'イチゴ栽培において、ミツバチを利用する主な目的は？', options: ['受粉を確実に行い、奇形果を防ぐため', '害虫を駆除するため', '蜜を集めて副産物にするため', 'ハウス内の温度を上げるため'], correctAnswerIndex: 0, explanation: 'イチゴは受粉が均一に行われないと果実がいびつな形（奇形果）になりやすいため、ハウス栽培ではミツバチやマルハナバチを放して受粉させます。' },
+      { difficulty: 'advanced', category: '歴史', question: '明治時代にアメリカから導入されたタマネギ品種で、現在の日本のタマネギ（黄色種）のルーツとなったのは？', options: ['イエロー・ダンバース', 'レッド・オニオン', 'ホワイト・スパニッシュ', 'シャルロット'], correctAnswerIndex: 0, explanation: '明治4年に北海道開拓使が導入した「イエロー・ダンバース」という品種が、札幌で品種改良され「札幌黄」となり、現在の日本の玉ねぎの基礎となりました。' },
+      { difficulty: 'advanced', category: '栄養', question: 'ブドウの果皮に含まれるポリフェノールの一種で、長寿遺伝子（サーチュイン）を活性化させると話題になった成分は？', options: ['レスベラトロール', 'ルチン', 'カテキン', 'イソフラボン'], correctAnswerIndex: 0, explanation: 'レスベラトロールは赤ワインやブドウの皮に含まれるポリフェノールで、抗酸化作用や抗老化効果が研究されています。' },
+      { difficulty: 'advanced', category: '分類', question: '別名「コショウダイコン」とも呼ばれ、ピリッとした辛味が特徴の西洋野菜は？', options: ['ホースラディッシュ', 'ラディッシュ', 'コールラビ', 'ルタバガ'], correctAnswerIndex: 0, explanation: 'ホースラディッシュ（西洋わさび）は、別名コショウダイコンやレフォールとも呼ばれ、ローストビーフの薬味などによく使われます。' },
+      { difficulty: 'advanced', category: '栽培', question: 'マルチシートなどの被覆資材を使わずに、自然のままの畑で栽培する方法を何と言いますか？', options: ['露地栽培', '施設栽培', '養液栽培', '促成栽培'], correctAnswerIndex: 0, explanation: '露地栽培は、ビニールハウスなどの施設を使わず、屋外の畑で自然の気候に合わせて作物を育てる栽培方法です。旬の野菜本来の味が楽しめます。' },
+      { difficulty: 'advanced', category: '歴史', question: '平安時代の書物「延喜式」にも記述があり、日本最古の野菜の一つとされるアブラナ科の野菜は？', options: ['カブ（蕪）', 'ハクサイ', 'キャベツ', 'ブロッコリー'], correctAnswerIndex: 0, explanation: 'カブは日本書紀や古事記にも記述が見られるほど古くから親しまれている野菜で、日本各地に在来種（聖護院かぶ、天王寺かぶなど）が存在します。' },
+      { difficulty: 'advanced', category: '品種', question: '春菊（シュンギク）は東日本と西日本で主流の品種が異なりますが、西日本で主に流通している「葉が広く切れ込みが浅い」品種群を何と呼びますか？', options: ['大葉種（オオバ）', '中葉種（チュウバ）', '小葉種（コバ）', '丸葉種'], correctAnswerIndex: 0, explanation: '西日本（特に関西）では葉が大きく切れ込みが浅い「大葉種」が好まれ、東日本では切れ込みが深く香りが強い「中葉種」が主流です。' },
+      { difficulty: 'advanced', category: '栄養', question: 'ヤマイモに含まれる消化酵素「ジアスターゼ（アミラーゼ）」は、何の消化を助ける働きがありますか？', options: ['デンプン（炭水化物）', 'タンパク質', '脂質', 'セルロース'], correctAnswerIndex: 0, explanation: 'ジアスターゼはデンプン分解酵素です。そのため、ヤマイモをご飯や麦飯にかけて食べると消化吸収が良くなります。' },
+      { difficulty: 'advanced', category: '分類', question: 'トウモロコシのひげ（絹糸）は、植物学的にはどの部分にあたりますか？', options: ['雌しべ（柱頭・花柱）', '雄しべ', '葉の変形したもの', '根の一部'], correctAnswerIndex: 0, explanation: 'トウモロコシのひげは雌しべの花柱にあたり、その本数は粒の数と同じです。一本一本が受粉して粒になります。' },
+      { difficulty: 'advanced', category: '分類', question: 'レタスやゴボウ、春菊はすべて同じ「科」に属します。その科名は？', options: ['キク科', 'アブラナ科', 'セリ科', 'ヒユ科'], correctAnswerIndex: 0, explanation: 'これらはすべてキク科の植物です。キク科野菜は独特の香りを持つものが多く、連作障害が出やすい特徴があります。' },
+      { difficulty: 'advanced', category: '歴史', question: '徳島県の特産である香酸柑橘で、ゴルフボールほどの大きさで緑色のうちに収穫して料理の香りづけに使われるのは？', options: ['すだち', 'かぼす', 'ゆず', 'へべす'], correctAnswerIndex: 0, explanation: '「すだち」は徳島県が全国シェアのほぼ全てを占める特産品です。一方、「かぼす」は大分県の特産品で、すだちより一回り大きいです。' },
+      { difficulty: 'advanced', category: '品種', question: '食用とされる「ユリ根（百合根）」、主に使われる品種（原種）はどれですか？', options: ['コオニユリ', 'カサブランカ', 'テッポウユリ', 'ヤマユリ'], correctAnswerIndex: 0, explanation: '苦味が少なく食用に適している「コオニユリ」や「オニユリ」が主に栽培されています。北海道が主な産地です。' },
+      { difficulty: 'advanced', category: '栄養', question: 'ネギの白い部分に多く含まれず、緑色の部分に多く含まれる栄養素は？', options: ['β-カロテン', '糖質', '硫化アリル', '水分'], correctAnswerIndex: 0, explanation: 'ネギの白い部分は淡色野菜、緑の部分は緑黄色野菜に分類されます。緑の部分には太陽光を浴びて生成されたβ-カロテンやビタミンCが豊富です。' },
+      { difficulty: 'advanced', category: '栽培', question: 'ホウレンソウなどの長日植物において、日が長くなると花茎が伸びてしまう現象を何と言いますか？', options: ['抽苔（ちゅうだい）／トウ立ち', '徒長', '分げつ', '春化'], correctAnswerIndex: 0, explanation: '日が長くなったり気温が上がったりすると、花を咲かせるために茎が伸びることを抽苔（トウ立ち）と言います。食味が落ちるため、収穫のタイミングが重要です。' },
+      { difficulty: 'advanced', category: '加工', question: '干し柿の表面に付いている白い粉の正体は？', options: ['柿霜（しそう）／ブドウ糖などの結晶', 'カビ', '農薬', '防腐剤'], correctAnswerIndex: 0, explanation: '柿の果肉に含まれる水分が抜ける際、糖分が表面に出て結晶化したもので「柿霜（しそう）」と呼ばれます。甘さの証明であり、漢方薬としても使われます。' },
+      { difficulty: 'advanced', category: '歴史', question: '日本で初めて「水ナス」の栽培が始まったとされる地域は？', options: ['大阪府（泉州地域）', '京都府（山城地域）', '愛知県（三河地域）', '高知県（安芸地域）'], correctAnswerIndex: 0, explanation: '水ナスは大阪府の泉州地域特産の伝統野菜です。皮が薄く水分が多いため、生食や浅漬けに非常に適しています。' },
+      { difficulty: 'advanced', category: '分類', question: '「アーティチョーク」の和名は？', options: ['朝鮮アザミ', '西洋フキ', '食用菊', '大王松'], correctAnswerIndex: 0, explanation: 'アーティチョークはキク科アザミ属の植物で、和名は「チョウセンアザミ」です。大きなつぼみのガクの付け根と花托部分を食べます。' },
+      { difficulty: 'advanced', category: '栄養', question: '柑橘類の果皮（外皮）に含まれる精油成分で、プラスチックを溶かす性質があるのは？', options: ['リモネン', 'シトラール', 'ナリンギン', 'ヘスペリジン'], correctAnswerIndex: 0, explanation: 'リモネンは柑橘類の香りの主成分で、油汚れを落とす洗剤にも使われますが、発泡スチロールなどのプラスチックを溶かす性質があります。' },
+      { difficulty: 'advanced', category: '分類', question: '落花生（ピーナッツ）の植物学的な分類は？', options: ['マメ科ラッカセイ属', 'マメ科エンドウ属', 'マメ科ダイズ属', 'マメ科インゲン属'], correctAnswerIndex: 0, explanation: '落花生はマメ科ラッカセイ属の植物です。花が咲いた後、子房柄が伸びて地中に潜り、土の中で実が育つという特異な性質から「落花生」と名付けられました。' },
+      { difficulty: 'advanced', category: '栽培', question: 'トマトの「わき芽かき」を行う主な理由は？', options: ['栄養を主枝や果実に集中させるため', '病気を防ぐため', '光合成を促進するため', '根を深く張らせるため'], correctAnswerIndex: 0, explanation: 'トマトは生命力が強く、葉の付け根から次々とわき芽が出てきます。これを放置すると葉や茎ばかりが茂り、実への栄養が分散してしまうため、わき芽を摘み取って一本仕立てにするのが一般的です。' },
+      { difficulty: 'advanced', category: '栄養', question: 'ワラビやゼンマイなどの山菜に含まれる天然発がん性物質で、アク抜き（重曹処理など）により除去できるものは？', options: ['プタキロサイド', 'ソラニン', 'アコニチン', 'アミグダリン'], correctAnswerIndex: 0, explanation: 'ワラビに含まれるプタキロサイドは発がん性物質ですが、水溶性で熱に弱く、アルカリ条件下で分解されやすいため、重曹を使ったアク抜きと水さらしを十分に行えば無害化できます。' },
+      { difficulty: 'advanced', category: '歴史', question: '「大浦ごぼう」は、千葉県匝瑳市（旧八日市場市）の大浦地区で栽培されている伝統野菜ですが、その特徴的な形状は？', options: ['太くて中が空洞', '極めて細長い', '短くて丸い', '枝分かれが多い'], correctAnswerIndex: 0, explanation: '大浦ごぼうは、直径10cm以上にもなる太さと、中に空洞ができるのが特徴です。「勝ちごぼう」とも呼ばれ、成田山新勝寺に奉納される精進料理の食材として有名です。' },
+      { difficulty: 'advanced', category: '分類', question: '「ひょうたん（瓢箪）」、「かんぴょう（干瓢）」の原料となる「ユウガオ」、そして「ヘチマ」。これらに共通する科名は？', options: ['ウリ科', 'ナス科', 'ヒルガオ科', 'アオイ科'], correctAnswerIndex: 0, explanation: 'これらはすべてウリ科の植物です。ユウガオの実を紐状に剥いて乾燥させたものがカンピョウです。' },
+      { difficulty: 'advanced', category: '生産', question: '農産物の規格において、イチゴのパック詰めで「グランデ」や「平詰め」と呼ばれる並べ方が高級とされる理由は？', options: ['果実同士の接触が少なく傷みにくいから', '数がたくさん入るから', '小さいイチゴをごまかせるから', '機械詰めしやすいから'], correctAnswerIndex: 0, explanation: 'イチゴは接触や振動に非常に弱いため、果実同士が重ならないようにクッション材を用いて一粒ずつ並べる（または平らに並べる）方法は、傷みを防ぎ高品質を保つための高級なパッキング方法です。' },
+      { difficulty: 'advanced', category: '栽培', question: '植物が光を感じて花芽分化（花を咲かせる準備）をする性質を「光周性」と言いますが、日が短くなると花芽をつける植物を何と言いますか？', options: ['短日植物', '長日植物', '中性植物', '陰性植物'], correctAnswerIndex: 0, explanation: '短日植物は、夜の長さ（暗記）が一定以上長くなると花芽を形成します。代表例はイネ、ダイズ、コスモス、キクなどです。逆にホウレンソウなどは長日植物です。' },
+      { difficulty: 'advanced', category: '栄養', question: 'タマネギの皮（茶色い外皮）に特に多く含まれるポリフェノールで、強い抗酸化作用を持つ色素成分は？', options: ['ケルセチン', 'ルチン', 'カテキン', 'アントシアニン'], correctAnswerIndex: 0, explanation: 'ケルセチンはフラボノイドの一種で、タマネギの可食部よりも茶色い外皮に高濃度で含まれています。血液サラサラ効果や抗炎症作用が期待され、皮茶などに利用されます。' },
+      { difficulty: 'advanced', category: '歴史', question: '日本の「三大ネギ」と言えば、千住ネギ、九条ネギ、あと一つは？', options: ['下仁田ネギ', '深谷ネギ', '岩津ネギ', '越津ネギ'], correctAnswerIndex: 2, explanation: '一般的に、関東の「千住ネギ（白ネギ）」、関西の「九条ネギ（青ネギ）」、そしてその中間的な特徴を持つ兵庫県の「岩津ネギ」が日本三大ネギと称されます。（※諸説あり、下仁田などを入れる場合もあります）' },
+      { difficulty: 'advanced', category: '品種', question: 'ブロッコリーの側枝（わき芽）が次々と伸びて、茎ブロッコリーのように長く収穫できるタイプの品種群を何と言いますか？', options: ['頂花蕾型', '側枝花蕾型（おかわりくん等）', '中間型', '抽苔型'], correctAnswerIndex: 1, explanation: '頂上の大きなつぼみ（頂花蕾）を収穫した後も、わき芽（側枝花蕾）がたくさん出てきて長期間収穫できるタイプを「側枝花蕾型」と呼び、家庭菜園で人気です。' },
+      { difficulty: 'advanced', category: '栄養', question: '緑黄色野菜の定義は「可食部100g当たりのカロテン含有量が◯◯μg以上のもの」です。◯◯に入る数字は？', options: ['600', '1000', '300', '100'], correctAnswerIndex: 0, explanation: '厚生労働省の基準では、原則として可食部100g中にカロテンを600μg（マイクログラム）以上含む野菜を緑黄色野菜と定義しています（トマトやピーマンなど、基準を下回っていても摂取量が多いなどの理由で含める例外もあります）。' },
+      { difficulty: 'advanced', category: '栽培', question: '野菜の連作障害の原因の一つである「センチュウ（線虫）」の被害を軽減するために植えられる対抗植物（コンパニオンプランツ）は？', options: ['マリーゴールド', 'ヒマワリ', 'コスモス', 'チューリップ'], correctAnswerIndex: 0, explanation: 'マリーゴールド（特にアフリカン種やフレンチ種）の根からは、土壌中のネコブセンチュウなどを抑制する成分が分泌されるため、大根などの畑に一緒に植えられたり、緑肥としてすき込まれたりします。' },
+      { difficulty: 'advanced', category: '規格', question: '日本農林規格（JAS）において、「完熟」と表示できるトマトの基準は？', options: ['特に明確な基準はない', '糖度が10度以上のもの', '樹上で赤く熟した状態で収穫したもの', 'リコピン含有量が一定以上のもの'], correctAnswerIndex: 0, explanation: '実はJAS規格において「完熟トマト」という明確な数値基準や定義は定められていません。一般的には樹上で赤くなってから収穫されたものを指しますが、メーカーや生産者の判断に委ねられています。（※加工用トマトには基準がある場合があります）' },
+      { difficulty: 'advanced', category: '品種', question: '「金時人参」に代表される、肉質が柔らかく色が濃い紅色のニンジンは、東洋系・西洋系のどちらに分類されますか？', options: ['東洋系', '西洋系', '中間系', '野生種'], correctAnswerIndex: 0, explanation: '現在日本で流通しているオレンジ色の太いニンジン（五寸ニンジンなど）は西洋系ですが、金時人参などの細長くて赤いニンジンは中国を経て伝わった東洋系品種です。リコピンを含み、独特の風味があります。' },
+      { difficulty: 'advanced', category: '歴史', question: '明治時代、札幌農学校（現・北海道大学）の教師として来日し、タマネギ、キャベツ、トマトなどの西洋野菜の栽培指導を行ったアメリカ人は？', options: ['ウィリアム・スミス・クラーク', 'ホーレス・ケプロン', 'エドウィン・ダン', 'ウィリアム・ペン・ブルックス'], correctAnswerIndex: 3, explanation: 'クラーク博士が有名ですが、実際に農場を開き、多くの西洋野菜の種子を導入して栽培法を確立・指導したのは、クラークの教え子であり後任のウィリアム・ペン・ブルックスです。「札幌黄」タマネギの生みの親とも言えます。' }
+    ];
+
+    // --- 共通ロジック (シャッフル修正版) ---
+    const getLocalQuestions = (difficulty, count) => {
+      const filtered = QUESTION_DATABASE.filter(q => q.difficulty === difficulty);
+      // 配列をシャッフル（Fisher-Yates）
+      for (let i = filtered.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [filtered[i], filtered[j]] = [filtered[j], filtered[i]];
+      }
+      // 指定数だけ取り出す
+      const selected = filtered.slice(0, count);
+
+      // 選択肢をシャッフルして正解の場所を分散させる
+      return selected.map(q => {
+        // 元の選択肢と正解フラグのペア
+        const optionsWithFlag = q.options.map((opt, i) => ({
+           text: opt,
+           isCorrect: i === q.correctAnswerIndex
+        }));
+
+        // 選択肢自体のシャッフル
+        for (let i = optionsWithFlag.length - 1; i > 0; i--) {
+           const j = Math.floor(Math.random() * (i + 1));
+           [optionsWithFlag[i], optionsWithFlag[j]] = [optionsWithFlag[j], optionsWithFlag[i]];
+        }
+
+        // 再構築
+        return {
+           ...q,
+           options: optionsWithFlag.map(o => o.text),
+           correctAnswerIndex: optionsWithFlag.findIndex(o => o.isCorrect)
+        };
+      });
+    };
+
+    // --- UIコンポーネント ---
+    const Button = ({ children, variant = 'primary', fullWidth = false, className = '', ...props }) => {
+      const baseStyles = "px-6 py-3 rounded-xl font-bold transition-all duration-200 transform active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed shadow-md flex items-center justify-center";
+      const variants = {
+        primary: "bg-emerald-600 hover:bg-emerald-700 text-white shadow-emerald-200",
+        secondary: "bg-orange-500 hover:bg-orange-600 text-white shadow-orange-200",
+        outline: "border-2 border-emerald-600 text-emerald-700 hover:bg-emerald-50 bg-white",
+        danger: "bg-red-500 hover:bg-red-600 text-white"
+      };
+      return <button className={`${baseStyles} ${variants[variant]} ${fullWidth ? 'w-full' : ''} ${className}`} {...props}>{children}</button>;
+    };
+
+    const LoginScreen = ({ onLogin }) => {
+      const [id, setId] = useState("");
+      return (
+        <div className="flex flex-col items-center justify-center h-full max-w-md mx-auto p-6 animate-fade-in duration-500">
+          <div className="bg-white p-8 rounded-3xl shadow-xl border border-emerald-100 w-full text-center">
+            <div className="flex justify-center mb-6"><div className="bg-emerald-100 p-4 rounded-full"><UserCheck className="w-10 h-10 text-emerald-600" /></div></div>
+            <h1 className="text-2xl font-bold text-emerald-900 mb-2">社員チェックイン</h1>
+            <p className="text-stone-500 mb-6 text-sm">社員番号を入力して学習を開始してください</p>
+            <form onSubmit={(e) => { e.preventDefault(); if (id.trim()) onLogin(id.trim()); }} className="space-y-4">
+              <input type="text" value={id} onChange={(e) => setId(e.target.value)} placeholder="社員番号 (例: 12345)" className="w-full p-4 rounded-xl border-2 border-stone-200 focus:border-emerald-500 focus:outline-none transition-colors text-center text-lg font-bold tracking-widest" required />
+              <Button type="submit" fullWidth disabled={!id.trim()}>チェックイン</Button>
+            </form>
+          </div>
+        </div>
+      );
+    };
+
+    const StartScreen = ({ onStart, onShowHistory, employeeId, onDownloadCSV, onLogout }) => (
+      <div className="flex flex-col items-center justify-center min-h-full max-w-2xl mx-auto p-6 animate-slide-up duration-700 py-12 relative">
+        <div className="absolute top-4 right-4 z-20">
+          <button onClick={onLogout} className="group flex items-center bg-white/90 backdrop-blur-sm pl-4 pr-3 py-2 rounded-full shadow-sm border border-stone-200 hover:shadow-md hover:border-red-100 transition-all duration-300">
+            <span className="text-stone-400 text-xs font-medium mr-3 border-r border-stone-200 pr-3">ID: {employeeId}</span>
+            <div className="flex items-center text-stone-500 group-hover:text-red-500 transition-colors"><LogOut className="w-3 h-3 mr-1" /><span className="text-xs font-bold">ログアウト</span></div>
+          </button>
+        </div>
+        <div className="bg-white/90 backdrop-blur-sm p-8 rounded-3xl shadow-xl border border-emerald-100 w-full text-center mb-6">
+          <div className="flex justify-center mb-6"><div className="bg-emerald-100 p-4 rounded-full"><Leaf className="w-12 h-12 text-emerald-600" /></div></div>
+          <h1 className="text-3xl md:text-4xl font-extrabold text-emerald-900 mb-2 tracking-tight">野菜ソムリエクイズ</h1>
+          <p className="text-emerald-600 font-bold mb-6 tracking-widest uppercase text-sm">VEGETABLE SOMMELIER QUIZ</p>
+          <p className="text-stone-600 mb-8 leading-relaxed text-sm md:text-base">出題されるクイズで、<br/>あなたの青果物知識を試しましょう。</p>
+          <div className="space-y-3 mb-8">
+            <button onClick={() => onStart('beginner')} className="w-full bg-emerald-50 hover:bg-emerald-100 border-2 border-emerald-200 text-emerald-800 p-4 rounded-2xl flex items-center transition-all duration-200 group">
+              <div className="bg-white p-2 rounded-full mr-4 shadow-sm group-hover:scale-110 transition-transform"><Sprout className="w-6 h-6 text-emerald-500" /></div>
+              <div className="text-left flex-1"><div className="font-bold text-lg">初級コース</div><div className="text-xs text-emerald-600">家庭で役立つ基礎知識</div></div>
+              <span className="bg-emerald-200 text-emerald-800 text-xs font-bold px-2 py-1 rounded">30問</span>
+            </button>
+            <button onClick={() => onStart('intermediate')} className="w-full bg-orange-50 hover:bg-orange-100 border-2 border-orange-200 text-orange-800 p-4 rounded-2xl flex items-center transition-all duration-200 group">
+              <div className="bg-white p-2 rounded-full mr-4 shadow-sm group-hover:scale-110 transition-transform"><Zap className="w-6 h-6 text-orange-500" /></div>
+              <div className="text-left flex-1"><div className="font-bold text-lg">中級コース</div><div className="text-xs text-orange-700">ソムリエ試験合格レベル</div></div>
+              <span className="bg-orange-200 text-orange-800 text-xs font-bold px-2 py-1 rounded">30問</span>
+            </button>
+            <button onClick={() => onStart('advanced')} className="w-full bg-stone-800 hover:bg-stone-700 border-2 border-stone-600 text-stone-100 p-4 rounded-2xl flex items-center transition-all duration-200 group shadow-lg">
+              <div className="bg-stone-600 p-2 rounded-full mr-4 shadow-sm group-hover:scale-110 transition-transform"><Crown className="w-6 h-6 text-yellow-400" /></div>
+              <div className="text-left flex-1"><div className="font-bold text-lg">上級コース</div><div className="text-xs text-stone-400">プロフェッショナル向け難問</div></div>
+              <span className="bg-stone-600 text-stone-200 text-xs font-bold px-2 py-1 rounded">30問</span>
+            </button>
+          </div>
+          <div className="flex flex-col gap-3">
+            <button onClick={onShowHistory} className="flex items-center justify-center mx-auto text-stone-500 hover:text-emerald-600 transition-colors text-sm font-medium"><HistoryIcon className="w-4 h-4 mr-2" />チャレンジ履歴を見る</button>
+            <button onClick={onDownloadCSV} className="flex items-center justify-center mx-auto text-stone-400 hover:text-emerald-600 transition-colors text-xs font-medium"><Download className="w-3 h-3 mr-1" />履歴をCSVでダウンロード</button>
+          </div>
+        </div>
+      </div>
+    );
+
+    const QuizCard = ({ question, currentNumber, totalQuestions, selectedOption, isAnswerChecked, onSelectOption, onNext, onQuit }) => {
+      if (!question) return null;
+      return (
+        <div className="max-w-3xl mx-auto w-full p-4 min-h-full flex flex-col justify-center animate-fade-in duration-500 py-12 relative">
+          <div className="flex justify-between items-center mb-6">
+            <button onClick={onQuit} className="text-stone-400 hover:text-stone-600 hover:bg-stone-200 p-2 rounded-full transition-colors flex items-center text-xs font-bold"><LogOut className="w-4 h-4 mr-1" />中断</button>
+            <span className="text-stone-500 font-medium tracking-widest text-sm">Q.{currentNumber} <span className="text-stone-300">/</span> {totalQuestions}</span>
+          </div>
+          <div className="flex justify-center mb-4"><span className="bg-orange-100 text-orange-700 px-3 py-1 rounded-full text-sm font-bold border border-orange-200">{question.category}</span></div>
+          <div className="bg-white rounded-2xl shadow-lg border border-stone-100 overflow-hidden mb-6">
+            <div className="p-6 md:p-8">
+              <h2 className="text-xl md:text-2xl font-bold text-stone-800 leading-relaxed mb-6">{question.question}</h2>
+              <div className="space-y-3">
+                {question.options.map((option, index) => {
+                  let style = "bg-stone-50 border-stone-200 hover:bg-stone-100 text-stone-700";
+                  if (isAnswerChecked) {
+                    if (index === question.correctAnswerIndex) style = "bg-emerald-100 border-emerald-500 text-emerald-900 ring-2 ring-emerald-500";
+                    else if (index === selectedOption) style = "bg-red-50 border-red-500 text-red-900 ring-2 ring-red-200";
+                    else style = "bg-stone-50 border-stone-200 opacity-50";
+                  } else if (selectedOption === index) style = "bg-emerald-50 border-emerald-500 text-emerald-900 ring-2 ring-emerald-500";
+                  return (
+                    <button key={index} disabled={isAnswerChecked} onClick={() => onSelectOption(index)} className={`w-full text-left p-4 rounded-xl border-2 transition-all duration-200 flex items-center justify-between group ${style}`}>
+                      <span className="font-semibold flex-1">{option}</span>
+                      {isAnswerChecked && index === question.correctAnswerIndex && <CheckCircle className="w-5 h-5 text-emerald-600" />}
+                      {isAnswerChecked && selectedOption === index && index !== question.correctAnswerIndex && <XCircle className="w-5 h-5 text-red-500" />}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+            {isAnswerChecked && (
+              <div className="bg-emerald-50 p-6 border-t border-emerald-100 animate-slide-up max-h-96 overflow-y-auto">
+                <div className="flex items-center space-x-2 mb-2">
+                  <span className={`text-lg font-bold ${selectedOption === question.correctAnswerIndex ? 'text-emerald-600' : 'text-red-500'}`}>{selectedOption === question.correctAnswerIndex ? '正解！' : '残念...'}</span>
+                  <span className="text-sm text-stone-500">正解は「{question.options[question.correctAnswerIndex]}」</span>
+                </div>
+                <p className="text-stone-700 leading-relaxed text-sm md:text-base mb-6 bg-white/50 p-4 rounded-lg border border-emerald-100/50">{question.explanation}</p>
+                <div className="flex justify-end pb-4"><Button onClick={onNext} className="flex items-center space-x-2 shadow-lg"><span>次の問題へ</span><ArrowRight className="w-4 h-4" /></Button></div>
+              </div>
+            )}
+          </div>
+        </div>
+      );
+    };
+
+    const ResultScreen = ({ score, total, onRetry, onHome }) => {
+      const percentage = (score / total) * 100;
+      let title, message, color;
+      if (percentage === 100) { title = "野菜ソムリエマスター級"; message = "素晴らしい！完璧な知識です。畑の賢者とお呼びします。"; color = "text-yellow-500"; } 
+      else if (percentage >= 80) { title = "上級プロ合格レベル"; message = "惜しい！あと少しで満点です。非常に高い知識をお持ちです。"; color = "text-emerald-600"; } 
+      else if (percentage >= 60) { title = "ソムリエ見習いレベル"; message = "基本は押さえていますね。さらに深い知識を目指しましょう！"; color = "text-emerald-500"; } 
+      else { title = "野菜好きの初心者"; message = "伸び代があります！これからもっと野菜の世界を楽しみましょう。"; color = "text-stone-500"; }
+      return (
+        // 修正: h-full を削除し、min-h-full と py-12 を追加してスクロール可能にする
+        <div className="flex flex-col items-center justify-center min-h-full max-w-2xl mx-auto p-6 py-12 animate-zoom-in duration-500">
+          <div className="bg-white p-8 rounded-3xl shadow-xl border border-stone-200 w-full text-center relative overflow-hidden">
+            <div className="absolute top-0 left-0 w-full h-2 bg-gradient-to-r from-emerald-400 via-orange-400 to-emerald-400"></div>
+            <div className="mb-6 flex justify-center"><div className={`p-6 rounded-full bg-stone-50 border-4 ${percentage === 100 ? 'border-yellow-400' : 'border-emerald-100'}`}><Trophy className={`w-16 h-16 ${percentage === 100 ? 'text-yellow-500' : 'text-emerald-600'}`} /></div></div>
+            <h2 className="text-xl text-stone-500 font-bold mb-2">結果発表</h2>
+            <div className="text-5xl font-extrabold text-stone-800 mb-2">{score} <span className="text-2xl text-stone-400">/</span> {total}</div>
+            <div className={`text-xl font-bold mb-4 ${color}`}>{title}</div>
+            <p className="text-stone-600 mb-8 bg-stone-50 p-4 rounded-xl">{message}</p>
+            <div className="flex flex-col space-y-3 w-full">
+              <Button onClick={onRetry} className="w-full py-4 shadow-lg text-lg flex items-center justify-center"><RotateCcw className="w-5 h-5 mr-2" />次の問題に挑戦</Button>
+              <Button onClick={onHome} variant="outline" className="w-full py-4 text-lg flex items-center justify-center"><Home className="w-5 h-5 mr-2" />トップページに戻る</Button>
+            </div>
+          </div>
+        </div>
+      );
+    };
+
+    const SwipeableHistoryItem = ({ log, onResume, onDelete, onDownloadDetail }) => {
+      const [translateX, setTranslateX] = useState(0);
+      const [isDragging, setIsDragging] = useState(false);
+      const startX = useRef(null);
+      const onTouchStart = (e) => { setIsDragging(true); startX.current = e.touches[0].clientX; };
+      const onTouchMove = (e) => { if (startX.current !== null) setTranslateX(Math.min(0, Math.max(-100, e.touches[0].clientX - startX.current))); };
+      const onTouchEnd = () => { setIsDragging(false); startX.current = null; setTranslateX(translateX < -40 ? -80 : 0); };
+      const onMouseDown = (e) => { setIsDragging(true); startX.current = e.clientX; };
+      const onMouseMove = (e) => { if (startX.current !== null && e.buttons === 1) setTranslateX(Math.min(0, Math.max(-100, e.clientX - startX.current))); };
+      const onMouseUp = () => { setIsDragging(false); startX.current = null; setTranslateX(translateX < -40 ? -80 : 0); };
+      const onMouseLeave = () => { if(startX.current !== null) onMouseUp(); };
+      
+      const diffLabel = { beginner: '初級', intermediate: '中級', advanced: '上級' }[log.difficulty] || '-';
+      const isSuspended = log.status === 'suspended';
+      const percentage = (log.score / log.total) * 100;
+      let scoreColor = "text-stone-600";
+      if (percentage === 100) scoreColor = "text-yellow-500";
+      else if (percentage >= 80) scoreColor = "text-emerald-600";
+
+      return (
+        <div className="relative mb-3 overflow-hidden rounded-xl select-none touch-pan-y">
+          <div className="absolute inset-y-0 right-0 w-full bg-red-500 flex justify-end rounded-xl"><button onClick={() => onDelete(log.id)} className="w-20 h-full flex flex-col items-center justify-center text-white hover:bg-red-600"><Trash2 className="w-6 h-6 mb-1" /><span className="text-xs font-bold">削除</span></button></div>
+          <div className="relative p-4 rounded-xl shadow-sm border flex flex-col gap-3 bg-white z-10 bg-white" style={{ transform: `translateX(${translateX}px)`, transition: isDragging ? 'none' : 'transform 0.3s ease-out' }} onTouchStart={onTouchStart} onTouchMove={onTouchMove} onTouchEnd={onTouchEnd} onMouseDown={onMouseDown} onMouseMove={onMouseMove} onMouseUp={onMouseUp} onMouseLeave={onMouseUp}>
+            <div className="flex items-center justify-between w-full">
+              <div className="pointer-events-none">
+                <div className="flex items-center space-x-2 mb-1"><span className="text-xs font-bold px-2 py-0.5 rounded bg-stone-100 text-stone-600">{diffLabel}</span><span className="text-xs text-stone-400 flex items-center"><Calendar className="w-3 h-3 mr-1" />{log.date}</span>{isSuspended && <span className="text-xs font-bold text-orange-600 flex items-center px-2 py-0.5 bg-orange-100 rounded">中断中</span>}</div>
+                {log.employeeId && <div className="text-xs font-bold text-stone-600">社員No: {log.employeeId}</div>}
+                <div className="text-xs text-stone-400">ID: {log.id}</div>
+              </div>
+              <div className="flex items-center space-x-3">
+                <button onClick={(e) => { e.stopPropagation(); onDownloadDetail(log); }} className="p-2 text-stone-400 hover:text-emerald-600 hover:bg-stone-100 rounded-full"><FileText className="w-5 h-5" /></button>
+                {isSuspended ? <button onClick={(e) => { e.stopPropagation(); onResume(log); }} className="flex items-center px-4 py-2 bg-orange-500 text-white rounded-lg hover:bg-orange-600 font-bold text-sm shadow-sm active:scale-95"><PlayCircle className="w-4 h-4 mr-1" />再開</button> : <div className="text-right"><div className={`text-xl font-bold ${scoreColor}`}>{log.score}<span className="text-sm text-stone-400">/{log.total}</span></div></div>}
+                {percentage === 100 && !isSuspended && <Trophy className="w-6 h-6 text-yellow-400" />}
+              </div>
+            </div>
+            {log.categoryScores && (
+                <div className="w-full pt-2 border-t border-stone-100 grid grid-cols-2 gap-2 sm:grid-cols-3">
+                   {Object.entries(log.categoryScores).map(([cat, score]) => (
+                     <div key={cat} className="flex items-center justify-between bg-stone-50 px-2 py-1 rounded text-xs">
+                       <span className="text-stone-600 font-medium truncate mr-1">{cat}</span>
+                       <span className={`font-bold ${score.correct === score.total ? 'text-emerald-600' : 'text-stone-500'}`}>
+                         {score.correct}/{score.total}
+                       </span>
+                     </div>
+                   ))}
+                </div>
+            )}
+          </div>
+        </div>
+      );
+    };
+
+    const HistoryScreen = ({ logs, onBack, onResume, onDelete, onDownloadDetail }) => (
+      <div className="flex flex-col h-full w-full max-w-3xl mx-auto p-4 animate-slide-up duration-300">
+        <div className="flex items-center mb-6 mt-4"><button onClick={onBack} className="p-2 rounded-full hover:bg-stone-200 transition-colors mr-4"><ArrowLeft className="w-6 h-6 text-stone-600" /></button><h2 className="text-2xl font-bold text-emerald-900">チャレンジ履歴</h2></div>
+        <p className="text-xs text-stone-400 mb-4 text-center">履歴を左にスワイプして削除</p>
+        {logs.length === 0 ? <div className="flex-1 flex flex-col items-center justify-center text-stone-400 p-8 bg-white/50 rounded-3xl border border-stone-200"><HistoryIcon className="w-16 h-16 mb-4 opacity-50" /><p>履歴がありません</p></div> : <div className="flex-1 overflow-y-auto pb-8">{[...logs].reverse().map(log => <SwipeableHistoryItem key={log.id} log={log} onResume={onResume} onDelete={onDelete} onDownloadDetail={onDownloadDetail} />)}</div>}
+      </div>
+    );
+
+    const App = () => {
+      const [employeeId, setEmployeeId] = useState("");
+      const [gameState, setGameState] = useState({ status: 'login', questions: [], currentQuestionIndex: 0, score: 0, results: [], userAnswers: [], selectedAnswerIndex: null, isAnswerChecked: false, difficulty: 'intermediate' });
+      const [logs, setLogs] = useState([]);
+      
+      useEffect(() => { 
+          const saved = localStorage.getItem('vegeLogs'); 
+          if (saved) {
+              try { setLogs(JSON.parse(saved)); } catch (e) { console.error("Logs parse error", e); }
+          }
+      }, []);
+      
+      const updateLogs = (newLogs) => { 
+          setLogs(newLogs); 
+          try {
+             localStorage.setItem('vegeLogs', JSON.stringify(newLogs));
+          } catch (e) {
+             console.error("LocalStorage error", e);
+             alert("保存容量が一杯のため、履歴を保存できませんでした。古い履歴を削除してください。");
+          }
+      };
+      
+      const startGame = (diff) => {
+        setGameState(p => ({ ...p, status: 'loading', difficulty: diff }));
+        setTimeout(() => {
+          try {
+            const questions = getLocalQuestions(diff, 30); // 30問出題
+            setGameState({ status: 'quiz', gameId: Date.now().toString(), questions, currentQuestionIndex: 0, score: 0, results: [], userAnswers: [], selectedAnswerIndex: null, isAnswerChecked: false, difficulty: diff });
+          } catch { setGameState(p => ({ ...p, status: 'error', errorMessage: '問題準備エラー' })); }
+        }, 500);
+      };
+      
+      const finishGame = (score, questions, results, answers) => {
+        const cats = {}; 
+        if(questions && questions.length > 0) {
+            questions.forEach((q, i) => { const c = q.category || '他'; if(!cats[c]) cats[c]={correct:0, total:0}; cats[c].total++; if(results[i]) cats[c].correct++; });
+            const log = { id: gameState.gameId, date: new Date().toLocaleDateString('ja-JP'), employeeId, difficulty: gameState.difficulty, score, total: questions.length, status: 'completed', categoryScores: cats, questions, userAnswers: answers };
+            updateLogs([...logs.filter(l => l.id !== gameState.gameId), log]);
+        }
+        setGameState(p => ({ ...p, status: 'finished', score }));
+      };
+      
+      const handleSelect = (i) => {
+        if(gameState.isAnswerChecked) return;
+        const isCorrect = i === gameState.questions[gameState.currentQuestionIndex].correctAnswerIndex;
+        setGameState(p => ({ ...p, selectedAnswerIndex: i, isAnswerChecked: true, score: isCorrect ? p.score + 1 : p.score, results: [...p.results, isCorrect], userAnswers: [...p.userAnswers, i] }));
+      };
+      
+      const handleNext = () => {
+        if (gameState.currentQuestionIndex + 1 >= gameState.questions.length) finishGame(gameState.score, gameState.questions, gameState.results, gameState.userAnswers);
+        else setGameState(p => ({ ...p, currentQuestionIndex: p.currentQuestionIndex + 1, selectedAnswerIndex: null, isAnswerChecked: false }));
+      };
+      
+      const handleQuit = () => {
+        if(gameState.questions && gameState.questions.length > 0) {
+          const cats = {}; gameState.questions.forEach((q, i) => { const c = q.category || '他'; if(!cats[c]) cats[c]={correct:0, total:0}; cats[c].total++; if(gameState.results[i]) cats[c].correct++; });
+          const log = { id: gameState.gameId, date: new Date().toLocaleDateString('ja-JP'), employeeId, difficulty: gameState.difficulty, score: gameState.score, total: gameState.questions.length, status: 'suspended', savedState: gameState, categoryScores: cats, questions: gameState.questions, userAnswers: gameState.userAnswers };
+          updateLogs([...logs.filter(l => l.id !== gameState.gameId), log]);
+        }
+        setGameState({ status: 'start', questions: [], currentQuestionIndex: 0, score: 0, results: [], userAnswers: [], selectedAnswerIndex: null, isAnswerChecked: false, difficulty: 'intermediate' });
+      };
+      
+      const resume = (log) => { if(log.savedState) setGameState({ ...log.savedState, status: 'quiz', gameId: log.id }); };
+      
+      // CSV出力 (一覧) - 修正: 難易度を日本語化
+      const downloadCSV = () => {
+        if(!logs.length) return alert('履歴なし');
+        const header = "ID,社員番号,日付,難易度,正解数,全問,分野別詳細\n";
+        const csv = "\uFEFF" + header + logs.filter(l=>l.status==='completed').map(l => {
+           let catStr = "";
+           if(l.categoryScores) catStr = Object.entries(l.categoryScores).map(([k,v]) => `${k}:${v.correct}/${v.total}`).join("|");
+           
+           // 難易度マッピング
+           const diffMap = { beginner: '初級', intermediate: '中級', advanced: '上級' };
+           const diffLabel = diffMap[l.difficulty] || l.difficulty;
+
+           return `${l.id},${l.employeeId},${l.date},${diffLabel},${l.score},${l.total},"${catStr}"`;
+        }).join("\n");
+        const link = document.createElement('a'); link.href = URL.createObjectURL(new Blob([csv], {type:'text/csv'})); link.download = 'summary.csv'; link.click();
+      };
+
+      // CSV出力 (詳細) - カテゴリ、正解、回答などを復活
+      const downloadDetail = (log) => {
+        const header = "No,カテゴリ,問題文,あなたの回答,正誤,正解\n";
+        const rows = log.questions.map((q, index) => {
+          const userAnsIndex = log.userAnswers?.[index];
+          const hasAnswered = userAnsIndex !== undefined && userAnsIndex !== null;
+          const userChoice = hasAnswered ? q.options[userAnsIndex] : "未回答";
+          const isCorrect = hasAnswered && userAnsIndex === q.correctAnswerIndex;
+          const resultStr = hasAnswered ? (isCorrect ? "正解" : "不正解") : "-";
+          const correctChoice = q.options[q.correctAnswerIndex];
+          const safeQuestion = `"${q.question.replace(/"/g, '""')}"`;
+          const safeUserChoice = `"${userChoice.replace(/"/g, '""')}"`;
+          const safeCorrectChoice = `"${correctChoice.replace(/"/g, '""')}"`;
+          return `${index + 1},${q.category},${safeQuestion},${safeUserChoice},${resultStr},${safeCorrectChoice}`;
+        }).join("\n");
+        
+        const csvContent = "\uFEFF" + header + rows;
+        const link = document.createElement('a'); 
+        link.href = URL.createObjectURL(new Blob([csvContent], {type:'text/csv'})); 
+        link.download = `detail_${log.date}_${log.id.slice(0,4)}.csv`; 
+        link.click();
+      };
+
+      return (
+        <div className="h-full w-full relative flex flex-col font-sans text-stone-800">
+          <div className="fixed inset-0 z-[-1] bg-stone-100 opacity-40" style={{backgroundImage: "radial-gradient(#10b981 1px, transparent 1px)", backgroundSize: "20px 20px"}}></div>
+          <header className="absolute top-0 left-0 w-full p-4 flex justify-center items-center z-10 pointer-events-none"><span className="font-bold text-emerald-800/50 text-sm tracking-wider uppercase">野菜ソムリエクイズ</span></header>
+          <main className="flex-1 overflow-y-auto h-full">
+            {gameState.status === 'login' && <LoginScreen onLogin={(id) => { setEmployeeId(id); setGameState(p => ({ ...p, status: 'start' })); }} />}
+            {gameState.status === 'start' && <StartScreen onStart={startGame} onShowHistory={() => setGameState(p => ({ ...p, status: 'history' }))} employeeId={employeeId} onDownloadCSV={downloadCSV} onLogout={() => { setEmployeeId(""); setGameState(p => ({ ...p, status: 'login' })); }} />}
+            {gameState.status === 'history' && <HistoryScreen logs={logs} onBack={handleQuit} onResume={resume} onDelete={id => updateLogs(logs.filter(l => l.id !== id))} onDownloadDetail={downloadDetail} />}
+            {gameState.status === 'loading' && <div className="flex h-full items-center justify-center"><Loader2 className="w-8 h-8 animate-spin text-emerald-500" /></div>}
+            {gameState.status === 'quiz' && <QuizCard question={gameState.questions[gameState.currentQuestionIndex]} currentNumber={gameState.currentQuestionIndex+1} totalQuestions={gameState.questions.length} selectedOption={gameState.selectedAnswerIndex} isAnswerChecked={gameState.isAnswerChecked} onSelectOption={handleSelect} onNext={handleNext} onQuit={handleQuit} />}
+            {gameState.status === 'finished' && <ResultScreen score={gameState.score} total={gameState.questions.length} onRetry={() => startGame(gameState.difficulty)} onHome={handleQuit} />}
+          </main>
+        </div>
+      );
+    };
+    const root = createRoot(document.getElementById('root'));
+    root.render(<App />);
+  </script>
+</body>
+</html>
