@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>野菜ソムリエクイズ</title>
 
-<!-- アプリアイコン (ここを追加：木箱に入った野菜のPNG画像) -->
+<!-- アプリアイコン -->
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="野菜クイズ">
@@ -41,15 +41,15 @@
 <!-- Reactを動かすためのBabel -->
 <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
 
-<!-- アプリの表示場所（画面いっぱいに広げる設定） -->
+<!-- アプリの表示場所 -->
 <div id="root" class="h-screen w-screen bg-stone-100 text-stone-800 overflow-hidden select-none"></div>
 
 <!-- メインプログラム -->
 <script type="text/babel" data-type="module">
-  // CodePen用に importmap を使わず直接URL指定でインポートします（これで確実に動きます）
   import React, { useState, useEffect, useRef } from 'https://esm.sh/react@18.2.0';
   import { createRoot } from 'https://esm.sh/react-dom@18.2.0/client';
-  import { Leaf, Sprout, Zap, Crown, History as HistoryIcon, CheckCircle, XCircle, ArrowRight, LogOut, Trophy, RotateCcw, Home, ArrowLeft, Calendar, PlayCircle, AlertCircle, Trash2, Loader2, UserCheck, Download, FileText } from 'https://esm.sh/lucide-react@0.263.1';
+  // Save, Upload アイコンを追加
+  import { Leaf, Sprout, Zap, Crown, History as HistoryIcon, CheckCircle, XCircle, ArrowRight, LogOut, Trophy, RotateCcw, Home, ArrowLeft, Calendar, PlayCircle, AlertCircle, Trash2, Loader2, UserCheck, Download, FileText, Save, Upload } from 'https://esm.sh/lucide-react@0.263.1';
 
   // --- データベース（全150問以上） ---
   const QUESTION_DATABASE = [
@@ -155,7 +155,7 @@
       { difficulty: 'intermediate', category: '栄養', question: 'スイカの種には、体を作るのに欠かせない栄養素が豊富に含まれています。それは何？', options: ['タンパク質と脂質（リノール酸など）', 'ビタミンC', '糖質', '水分'], correctAnswerIndex: 0, explanation: 'スイカの種は、中国などでは炒ってスナックとして食べられています。タンパク質と良質な脂質（リノール酸など）、ミネラルが豊富です。' },
       { difficulty: 'intermediate', category: '保存', question: 'お米の虫除けとして利用できる、殺菌作用のある野菜は？', options: ['唐辛子（タカノツメ）', '生姜', 'ジャガイモ', 'カボチャ'], correctAnswerIndex: 0, explanation: '唐辛子に含まれる辛味成分や揮発成分を虫が嫌うため、米びつに入れておくとコクゾウムシなどの防虫効果があります。' },
       { difficulty: 'intermediate', category: '調理', question: '春菊（シュンギク）の独特の香りを楽しみたい場合、茎と葉、どちらを生で食べるのがおすすめ？', options: ['茎は硬いので葉だけ', '葉は苦いので茎だけ', '柔らかい葉先を中心に生で', '加熱しないと食べられない'], correctAnswerIndex: 2, explanation: '新鮮な春菊の葉先は柔らかく、生でサラダにすると独特の香りが楽しめます。加熱しすぎると苦味が出やすくなります。' },
-      { difficulty: 'intermediate', category: '栄養', question: '「ニラ」に豊富に含まれ、体内でビタミンAに変わる成分は？', options: ['β-カロテン', 'リコピン', 'ルテイン', 'アントシアニン'], correctAnswerIndex: 0, explanation: 'ニラは緑黄色野菜で、β-カロテンが非常に豊富です。油と一緒に調理すると吸収率が高まります。' },
+      { difficulty: 'intermediate', category: '栄養', question: '「ニラ」に豊富に含まれ、体内でビタミンAに変わる成分は？', options: ['β-カロテン', 'リコピン', 'ルテイン', 'アントシアニン'], correctAnswerIndex: 0, explanation: 'ニラは緑黄色野菜で、β-カロテンが非常に豊富です。油と一緒に調理すると吸収率が上がります。' },
       { difficulty: 'intermediate', category: '栽培', question: '「ミョウガ（茗荷）」の旬の時期は、一般的にいつ頃ですか？', options: ['春と秋', '夏と秋', '冬と春', '一年中同じ'], correctAnswerIndex: 1, explanation: 'ミョウガには6〜8月に収穫される「夏ミョウガ」と、8〜10月に収穫される「秋ミョウガ」があり、夏から秋が旬です。' },
       { difficulty: 'intermediate', category: '品種', question: '徳島県の「すだち」と大分県の「かぼす」。一般的にサイズが大きいのはどっち？', options: ['すだち', 'かぼす', '同じくらい', '季節による'], correctAnswerIndex: 1, explanation: 'すだちはゴルフボール程度（30-40g）、かぼすはテニスボール程度（100-150g）の大きさがあり、かぼすの方が大きいです。' },
       { difficulty: 'intermediate', category: '調理', question: 'ゴーヤー（ニガウリ）の苦味を和らげる下処理として効果的なのは？', options: ['砂糖水につける', '塩揉みするか、サッと茹でる', '冷凍する', '天日干しする'], correctAnswerIndex: 1, explanation: '薄くスライスして塩揉みし、水分を絞るか、熱湯でサッと茹でることで苦味成分が抜け、食べやすくなります。' },
@@ -284,7 +284,7 @@
       );
     };
 
-    const StartScreen = ({ onStart, onShowHistory, employeeId, onDownloadCSV, onLogout }) => (
+    const StartScreen = ({ onStart, onShowHistory, employeeId, onDownloadCSV, onBackup, onRestore, onLogout }) => (
       <div className="flex flex-col items-center justify-center min-h-full max-w-2xl mx-auto p-6 animate-slide-up duration-700 py-12 relative">
         <div className="absolute top-4 right-4 z-20">
           <button onClick={onLogout} className="group flex items-center bg-white/90 backdrop-blur-sm pl-4 pr-3 py-2 rounded-full shadow-sm border border-stone-200 hover:shadow-md hover:border-red-100 transition-all duration-300">
@@ -317,6 +317,19 @@
           <div className="flex flex-col gap-3">
             <button onClick={onShowHistory} className="flex items-center justify-center mx-auto text-stone-500 hover:text-emerald-600 transition-colors text-sm font-medium"><HistoryIcon className="w-4 h-4 mr-2" />チャレンジ履歴を見る</button>
             <button onClick={onDownloadCSV} className="flex items-center justify-center mx-auto text-stone-400 hover:text-emerald-600 transition-colors text-xs font-medium"><Download className="w-3 h-3 mr-1" />履歴をCSVでダウンロード</button>
+          </div>
+          <div className="flex flex-col gap-3 mt-4 border-t border-stone-200 pt-4">
+             <p className="text-xs text-center text-stone-400 font-bold mb-1">データ管理</p>
+             <div className="flex justify-center gap-4">
+                 <button onClick={onBackup} className="flex flex-col items-center text-stone-400 hover:text-emerald-600 transition-colors text-xs">
+                     <div className="p-2 bg-stone-100 rounded-full mb-1"><Save className="w-4 h-4"/></div>
+                     バックアップ
+                 </button>
+                 <button onClick={onRestore} className="flex flex-col items-center text-stone-400 hover:text-orange-500 transition-colors text-xs">
+                      <div className="p-2 bg-stone-100 rounded-full mb-1"><Upload className="w-4 h-4"/></div>
+                      復元
+                 </button>
+             </div>
           </div>
         </div>
       </div>
@@ -457,6 +470,7 @@
       const [employeeId, setEmployeeId] = useState("");
       const [gameState, setGameState] = useState({ status: 'login', questions: [], currentQuestionIndex: 0, score: 0, results: [], userAnswers: [], selectedAnswerIndex: null, isAnswerChecked: false, difficulty: 'intermediate' });
       const [logs, setLogs] = useState([]);
+      const fileInputRef = useRef(null);
       
       useEffect(() => { 
           const saved = localStorage.getItem('vegeLogs'); 
@@ -517,7 +531,7 @@
       
       const resume = (log) => { if(log.savedState) setGameState({ ...log.savedState, status: 'quiz', gameId: log.id }); };
       
-      // CSV出力 (一覧) - 修正: 難易度を日本語化
+      // CSV出力 (一覧)
       const downloadCSV = () => {
         if(!logs.length) return alert('履歴なし');
         const header = "ID,社員番号,日付,難易度,正解数,全問,分野別詳細\n";
@@ -534,7 +548,7 @@
         const link = document.createElement('a'); link.href = URL.createObjectURL(new Blob([csv], {type:'text/csv'})); link.download = 'summary.csv'; link.click();
       };
 
-      // CSV出力 (詳細) - カテゴリ、正解、回答などを復活
+      // CSV出力 (詳細)
       const downloadDetail = (log) => {
         const header = "No,カテゴリ,問題文,あなたの回答,正誤,正解\n";
         const rows = log.questions.map((q, index) => {
@@ -557,13 +571,67 @@
         link.click();
       };
 
+      // --- バックアップ機能 ---
+      const handleBackup = () => {
+        if(logs.length === 0) {
+            alert('バックアップする履歴データがありません。');
+            return;
+        }
+        const blob = new Blob([JSON.stringify(logs, null, 2)], { type: 'application/json' });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        const dateStr = new Date().toISOString().slice(0, 10).replace(/-/g, '');
+        link.download = `vegetable_quiz_backup_${dateStr}.json`;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        URL.revokeObjectURL(url);
+      };
+
+      // --- 復元機能 ---
+      const handleRestore = () => {
+        if (fileInputRef.current) {
+          fileInputRef.current.click();
+        }
+      };
+
+      const handleFileChange = (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
+
+        const reader = new FileReader();
+        reader.onload = (event) => {
+          try {
+            const importedLogs = JSON.parse(event.target.result);
+            if (Array.isArray(importedLogs)) {
+              if (window.confirm('現在の履歴を上書き（または結合）しますか？\n「OK」を押すと読み込んだデータで履歴が更新されます。')) {
+                 // 既存のIDと重複しないようにマージするか、完全に置き換えるか。
+                 // ここではシンプルに「置き換え」とします（最もトラブルが少ないため）
+                 updateLogs(importedLogs);
+                 alert('復元が完了しました。');
+              }
+            } else {
+              alert('ファイル形式が正しくありません（配列形式である必要があります）。');
+            }
+          } catch (error) {
+            console.error(error);
+            alert('ファイルの読み込みに失敗しました。正しいJSONファイルを選択してください。');
+          }
+        };
+        reader.readAsText(file);
+        // 同じファイルを再度選択できるように値をリセット
+        e.target.value = '';
+      };
+
       return (
         <div className="h-full w-full relative flex flex-col font-sans text-stone-800">
           <div className="fixed inset-0 z-[-1] bg-stone-100 opacity-40" style={{backgroundImage: "radial-gradient(#10b981 1px, transparent 1px)", backgroundSize: "20px 20px"}}></div>
           <header className="absolute top-0 left-0 w-full p-4 flex justify-center items-center z-10 pointer-events-none"><span className="font-bold text-emerald-800/50 text-sm tracking-wider uppercase">野菜ソムリエクイズ</span></header>
           <main className="flex-1 overflow-y-auto h-full">
+            <input type="file" ref={fileInputRef} onChange={handleFileChange} style={{ display: 'none' }} accept=".json" />
             {gameState.status === 'login' && <LoginScreen onLogin={(id) => { setEmployeeId(id); setGameState(p => ({ ...p, status: 'start' })); }} />}
-            {gameState.status === 'start' && <StartScreen onStart={startGame} onShowHistory={() => setGameState(p => ({ ...p, status: 'history' }))} employeeId={employeeId} onDownloadCSV={downloadCSV} onLogout={() => { setEmployeeId(""); setGameState(p => ({ ...p, status: 'login' })); }} />}
+            {gameState.status === 'start' && <StartScreen onStart={startGame} onShowHistory={() => setGameState(p => ({ ...p, status: 'history' }))} employeeId={employeeId} onDownloadCSV={downloadCSV} onBackup={handleBackup} onRestore={handleRestore} onLogout={() => { setEmployeeId(""); setGameState(p => ({ ...p, status: 'login' })); }} />}
             {gameState.status === 'history' && <HistoryScreen logs={logs} onBack={handleQuit} onResume={resume} onDelete={id => updateLogs(logs.filter(l => l.id !== id))} onDownloadDetail={downloadDetail} />}
             {gameState.status === 'loading' && <div className="flex h-full items-center justify-center"><Loader2 className="w-8 h-8 animate-spin text-emerald-500" /></div>}
             {gameState.status === 'quiz' && <QuizCard question={gameState.questions[gameState.currentQuestionIndex]} currentNumber={gameState.currentQuestionIndex+1} totalQuestions={gameState.questions.length} selectedOption={gameState.selectedAnswerIndex} isAnswerChecked={gameState.isAnswerChecked} onSelectOption={handleSelect} onNext={handleNext} onQuit={handleQuit} />}
